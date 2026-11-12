@@ -71,6 +71,61 @@ final class Client
         return $this->request('GET', '/companies/'.self::id($id));
     }
 
+
+    /**
+     * Recherche courte des evenements (dix resultats maximum dans le code etudie).
+     * Le nombre total "count" peut etre superieur a la longueur de "data".
+     * @return array{count:int,data:list<array<string,mixed>>}
+     */
+    public function eventSuggestions(?string $search = null): array
+    {
+        $params = self::searchParams($search);
+        $path = '/events'.($params === [] ? '' : '?'.http_build_query($params, '', '&', PHP_QUERY_RFC3986));
+        $result = $this->request('GET', $path);
+        if (!isset($result['count'], $result['data'])
+            || !is_int($result['count']) || $result['count'] < 0
+            || !is_array($result['data']) || !array_is_list($result['data'])) {
+            throw new ProtocolException('Format de recherche des evenements inattendu.');
+        }
+        foreach ($result['data'] as $event) {
+            if (!is_array($event) || array_is_list($event)) {
+                throw new ProtocolException('Entree de recherche des evenements inattendue.');
+            }
+        }
+        return $result;
+    }
+
+    /** @return array<string,mixed> Fiche evenement brute. */
+    public function event(int $id): array
+    {
+        return $this->request('GET', '/events/'.self::id($id));
+    }
+
+    /**
+     * Liste paginee des bookings, limitee a 30 par page dans le code etudie.
+     * Par defaut Loxya exclut les bookings archives.
+     * @return array{data:list<array<string,mixed>>,pagination:array<array-key,mixed>}
+     */
+    public function bookings(
+        int $page = 1,
+        int $limit = 30,
+        ?string $search = null,
+        bool $archived = false,
+    ): array {
+        if ($limit > 30) {
+            throw new \InvalidArgumentException('Bookings : maximum 30 entrees par page.');
+        }
+        return $this->getListing(
+            '/bookings', $page, $limit, $search, $archived ? ['archived' => '1'] : [],
+        );
+    }
+
+    /** @return array<string,mixed> Vue booking d'un evenement, distincte de event(). */
+    public function eventBooking(int $id): array
+    {
+        return $this->request('GET', '/bookings/event/'.self::id($id));
+    }
+
     public function createCompany(array $fields): array
     {
         self::requireFields($fields, ['legal_name', 'country'], self::COMPANY_FIELDS);
@@ -144,19 +199,14 @@ final class Client
         return $after;
     }
 
-    private function getListing(string $path, int $page, int $limit, ?string $search): array
-    {
+    /** @param array<string,string> $extraParams */
+    private function getListing(
+        string $path, int $page, int $limit, ?string $search, array $extraParams = [],
+    ): array {
         if ($page < 1 || $limit < 1 || $limit > 100) {
             throw new \InvalidArgumentException('Pagination invalide : page >= 1 et limit 1..100.');
         }
-        $params = ['page' => $page, 'limit' => $limit];
-        if ($search !== null && trim($search) !== '') {
-            $length = preg_match_all('/./us', $search);
-            if ($length === false || $length < 2 || $length > 180) {
-                throw new \InvalidArgumentException('Recherche : 2 a 180 caracteres.');
-            }
-            $params['search'] = $search;
-        }
+        $params = array_merge(['page' => $page, 'limit' => $limit], self::searchParams($search), $extraParams);
         $result = $this->request('GET', $path.'?'.http_build_query($params, '', '&', PHP_QUERY_RFC3986));
         if (!isset($result['data'], $result['pagination'])
             || !is_array($result['data']) || !array_is_list($result['data'])
@@ -165,10 +215,23 @@ final class Client
         }
         foreach ($result['data'] as $contact) {
             if (!is_array($contact) || array_is_list($contact)) {
-                throw new ProtocolException('Entree de liste de contacts Loxya inattendue.');
+                throw new ProtocolException('Entree de liste Loxya inattendue.');
             }
         }
         return $result;
+    }
+
+    /** @return array<string,string> */
+    private static function searchParams(?string $search): array
+    {
+        if ($search === null || trim($search) === '') {
+            return [];
+        }
+        $length = preg_match_all('/./us', $search);
+        if ($length === false || $length < 2 || $length > 180) {
+            throw new \InvalidArgumentException('Recherche : 2 a 180 caracteres.');
+        }
+        return ['search' => $search];
     }
 
     private function request(string $method, string $path, ?array $payload = null): array

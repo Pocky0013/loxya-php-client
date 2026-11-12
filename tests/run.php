@@ -787,4 +787,120 @@ test('Diagnostic P4 : ID invalide ne declenche pas de lecture de detail', functi
     ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Lecture de detail sur ID incorrect');
 });
 
+
+test('P6.1 : bookings pagines conservent les donnees brutes et les metadonnees', function (): void {
+    $body = ['data' => [['id' => 42, 'type' => 'event', 'title' => 'Fete fictive']],
+        'pagination' => ['perPage' => 30, 'currentPage' => 1, 'total' => ['items' => 53, 'pages' => 2]]];
+    $f = login(new FakeTransport())->queue('GET', '/bookings?page=1&limit=30', 200, $body);
+    ensure(client($f)->bookings() === $body, 'Donnees ou pagination bookings transformees');
+    ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Appels bookings incorrects');
+});
+
+test('P6.1 : recherche bookings et archives, sans filtre implicite nouveau', function (): void {
+    $body = ['data' => [['id' => 42, 'type' => 'event']], 'pagination' => ['currentPage' => 2]];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/bookings?page=2&limit=15&search=Caf%C3%A9%20test&archived=1', 200, $body)
+        ->queue('GET', '/bookings?page=1&limit=30', 200, ['data' => [], 'pagination' => []]);
+    $c = client($f);
+    ensure($c->bookings(2, 15, 'Café test', true) === $body, 'Recherche bookings incorrecte');
+    ensure($c->bookings()['data'] === [], 'Page vide bookings incorrecte');
+    ensure($f->remaining() === 0, 'Requetes non consommees');
+});
+
+test('P6.1 : details evenement et booking evenement utilisent deux routes', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/events/42', 200, ['id' => 42, 'title' => 'Exemple'])
+        ->queue('GET', '/bookings/event/42', 200, ['id' => 42, 'type' => 'event', 'materials' => []]);
+    $c = client($f);
+    ensure($c->event(42)['title'] === 'Exemple', 'Mauvaise route event');
+    ensure($c->eventBooking(42)['materials'] === [], 'Mauvaise route booking/event');
+    ensure($f->remaining() === 0, 'Requetes de details non consommees');
+});
+
+test('P6.1 : recherche courte est limitee et count ne vaut pas la taille de data', function (): void {
+    $body = ['count' => 79, 'data' => [['id' => 42, 'title' => 'Selection fictive']]];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/events', 200, $body)
+        ->queue('GET', '/events?search=Gala%20%C3%A9t%C3%A9', 200, ['count' => 0, 'data' => []]);
+    $c = client($f);
+    ensure($c->eventSuggestions() === $body, 'Count de suggestions modifie');
+    ensure($c->eventSuggestions('Gala été') === ['count' => 0, 'data' => []],
+        'Recherche accentuee incorrecte');
+    ensure($f->remaining() === 0, 'Requetes suggestions non consommees');
+});
+
+test('P6.1 : schemas invalides des suggestions refuses', function (): void {
+    foreach ([
+        ['data' => []],
+        ['count' => '1', 'data' => []],
+        ['count' => -1, 'data' => []],
+        ['count' => 0, 'data' => ['id' => 42]],
+        ['count' => 1, 'data' => [42]],
+        ['count' => 1, 'data' => [['bad-list']]],
+    ] as $body) {
+        $f = login(new FakeTransport())->queue('GET', '/events', 200, $body);
+        try {
+            client($f)->eventSuggestions();
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Requete supplementaire apres erreur');
+            continue;
+        }
+        throw new RuntimeException('Schema de suggestions incorrect accepte');
+    }
+});
+
+test('P6.1 : bookings rejette les formats pagines invalides', function (): void {
+    foreach ([
+        ['data' => [], 'pagination' => 'bad'],
+        ['data' => [['id' => 1]]],
+        ['data' => ['id' => 1], 'pagination' => []],
+    ] as $body) {
+        $f = login(new FakeTransport())->queue('GET', '/bookings?page=1&limit=30', 200, $body);
+        try {
+            client($f)->bookings();
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2, 'Bookings rejoues apres erreur');
+            continue;
+        }
+        throw new RuntimeException('Schema bookings incorrect accepte');
+    }
+});
+
+test('P6.1 : identifiants et parametres refuses avant acces HTTP', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        fn () => $c->bookings(0),
+        fn () => $c->bookings(1, 0),
+        fn () => $c->bookings(1, 31),
+        fn () => $c->bookings(1, 30, 'a'),
+        fn () => $c->bookings(1, 30, "\xFF"),
+        fn () => $c->eventSuggestions('x'),
+        fn () => $c->event(0),
+        fn () => $c->eventBooking(-3),
+    ] as $invalid) {
+        try {
+            $invalid();
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Parametre P6 incorrect accepte');
+    }
+    ensure($f->calls === [], 'Acces HTTP avant validation');
+});
+
+test('P6.1 : 401 GET reconnecte une seule fois sans ecriture metier', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/bookings?page=1&limit=30', 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'JWT2'])
+        ->queue('GET', '/bookings?page=1&limit=30', 200, ['data' => [], 'pagination' => []]);
+    ensure(client($f)->bookings()['data'] === [], 'Reconnexion bookings incorrecte');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET'
+            || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Ecriture de ressource inattendue');
+    }
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Appels de reconnexion incorrects');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";
