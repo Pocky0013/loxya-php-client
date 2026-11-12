@@ -27,12 +27,16 @@ final class Client
         return $session;
     }
 
-    /** Liste paginee ; la recherche est facultative. */
+    /**
+     * Liste paginee ; la recherche est facultative.
+     * @return array{data:list<array<string,mixed>>,pagination:array<string,mixed>}
+     */
     public function beneficiaries(int $page = 1, int $limit = 30, ?string $search = null): array
     {
         return $this->getListing('/beneficiaries', $page, $limit, $search);
     }
 
+    /** @return array<string,mixed> Reponse source, non normalisee. */
     public function beneficiary(int $id): array
     {
         return $this->request('GET', '/beneficiaries/'.self::id($id));
@@ -55,11 +59,13 @@ final class Client
         return $this->beneficiary($id);
     }
 
+    /** @return array{data:list<array<string,mixed>>,pagination:array<string,mixed>} */
     public function companies(int $page = 1, int $limit = 30, ?string $search = null): array
     {
         return $this->getListing('/companies', $page, $limit, $search);
     }
 
+    /** @return array<string,mixed> Reponse source, non normalisee. */
     public function company(int $id): array
     {
         return $this->request('GET', '/companies/'.self::id($id));

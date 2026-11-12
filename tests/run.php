@@ -491,4 +491,74 @@ if (extension_loaded('curl')) {
     });
 }
 
+
+/** Charge uniquement les fixtures publiques et entierement fictives du contrat. */
+function contactFixture(string $name): array
+{
+    if (!preg_match('/^[a-z-]+$/D', $name)) {
+        throw new InvalidArgumentException('Nom de fixture invalide.');
+    }
+    $contents = file_get_contents(__DIR__.'/fixtures/'.$name.'.json');
+    if ($contents === false) {
+        throw new RuntimeException('Fixture introuvable : '.$name);
+    }
+    $value = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+    if (!is_array($value) || array_is_list($value)) {
+        throw new RuntimeException('Fixture invalide : '.$name);
+    }
+    return $value;
+}
+
+test('Contrat P2 : listes sources brutes et pagination preservees', function (): void {
+    $companies = contactFixture('companies-page');
+    $beneficiaries = contactFixture('beneficiaries-page');
+    $f = login(new FakeTransport())
+        ->queue('GET', '/companies?page=1&limit=30', 200, $companies)
+        ->queue('GET', '/beneficiaries?page=1&limit=30', 200, $beneficiaries);
+    $c = client($f);
+    ensure($c->companies() === $companies, 'Donnees de societe transformees');
+    ensure($c->beneficiaries() === $beneficiaries, 'Donnees de beneficiaires transformees');
+    ensure($f->remaining() === 0, 'Appels manquants');
+});
+
+test('Contrat P2 : meme ID numerique pour deux types de fiches distinctes', function (): void {
+    $company = contactFixture('company-detail');
+    $beneficiary = contactFixture('beneficiary-detail');
+    ensure($company['id'] === $beneficiary['id'], 'Exemple non collisionnel');
+    $f = login(new FakeTransport())
+        ->queue('GET', '/companies/42', 200, $company)
+        ->queue('GET', '/beneficiaries/42', 200, $beneficiary);
+    $c = client($f);
+    ensure(($c->company(42)['legal_name'] ?? null) === 'Exemple SA', 'Mauvaise route societe');
+    ensure(($c->beneficiary(42)['first_name'] ?? null) === 'Camille', 'Mauvaise route beneficiaire');
+    ensure($f->remaining() === 0, 'Routes confondues');
+});
+
+test('Contrat P2 : company_id entier, null et absent restent differents', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/beneficiaries?page=1&limit=30', 200, contactFixture('beneficiaries-page'));
+    $data = client($f)->beneficiaries()['data'];
+    ensure($data[0]['company_id'] === 42, 'Relation presente alteree');
+    ensure(array_key_exists('company_id', $data[1]) && $data[1]['company_id'] === null,
+        'Relation nulle alteree');
+    ensure(!array_key_exists('company_id', $data[2]), 'Relation absente convertie en null');
+    ensure(!array_key_exists('last_name', $data[2]), 'Nom manquant complete artificiellement');
+});
+
+test('Contrat P2 : champs supplementaires du serveur conserves sans transformation', function (): void {
+    $company = contactFixture('company-detail');
+    $company['extension_future_fictive'] = ['variable' => 123, 'active' => false];
+    $f = login(new FakeTransport())->queue('GET', '/companies/42', 200, $company);
+    ensure(client($f)->company(42) === $company, 'Champ inconnu perdu ou reinterprete');
+});
+
+test('Contrat P2 : pagination et recherche ne reconstruisent pas la reponse', function (): void {
+    $page = ['data' => [], 'pagination' => ['currentPage' => 5, 'total' => ['items' => 2, 'pages' => 1],
+        'metadata_fictive' => 'preserved']];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/companies?page=5&limit=1&search=Caf%C3%A9', 200, $page);
+    ensure(client($f)->companies(5, 1, 'Café') === $page, 'Pagination calculee ou modifiee');
+    ensure($f->remaining() === 0, 'Requete de page differente');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

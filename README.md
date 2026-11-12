@@ -97,6 +97,8 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
 
+Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule.
+
 Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
 
 ## Fonctionnement et limites

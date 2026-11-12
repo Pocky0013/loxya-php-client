@@ -1,0 +1,9 @@
+{
+  "id": 42,
+  "first_name": "Camille",
+  "last_name": "Exemple",
+  "email": "camille@example.invalid",
+  "country": "CH",
+  "company_id": 42,
+  "postal_code": null
+}
