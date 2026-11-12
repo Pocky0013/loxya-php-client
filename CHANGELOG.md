@@ -4,9 +4,11 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ## [Unreleased]
 
-### Contenu candidat pour `v0.1.0` — **non publié**
+Aucune modification annoncée depuis le candidat initial.
 
-Ce bloc décrit la première version **en préparation**. Il ne constitue ni un tag ni une GitHub Release. La date et l'en-tête `[0.1.0]` seront renseignés dans un commit vérifié **avant** une publication explicitement autorisée.
+## [0.1.0] - 2026-11-12
+
+**Première version expérimentale du SDK.** Ces notes décrivent le contenu du commit de publication ; la disponibilité de la version dépend de la présence du tag Git `v0.1.0`.
 
 #### Ajouté
 
@@ -31,4 +33,4 @@ Ce bloc décrit la première version **en préparation**. Il ne constitue ni un 
 - Écritures **En test** : la comparaison stricte peut signaler une opération non confirmée si le SaaS normalise une valeur.
 - Recette complète des écritures réelles sur fiches fictives non réalisée dans le cadre des tests automatisés.
 - Aucun support des suppressions, événements, matériel ou réservations ; aucune synchronisation automatique.
-- Aucune version stable 1.x, aucun tag `v0.1.0`, aucune GitHub Release et aucune publication Packagist à ce stade.
+- Aucune version stable 1.x ni publication Packagist ; une GitHub Release peut accompagner le tag après vérification de la CI.
