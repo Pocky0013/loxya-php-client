@@ -4,14 +4,14 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ## [Unreleased]
 
-### Ajouté — candidat P6.1 non publié
+### En préparation — `v0.2.0` (non publiée)
 
 - Lecture de la liste des bookings sur une période via `bookingsInPeriod(string $startDate, string $endDate)` : réponse JSON à la racine, non paginée.
 - Lecture de la fiche complète d'un événement avec `event(int $id)` : le tableau `materials` contient les références et quantités affectées.
 - Tests de transport simulé pour le parcours liste → détail → matériel, validation des dates, erreurs de lecture et compatibilité des signatures.
 - Contrat documenté à partir de deux routes observées dans des traces SaaS autorisées, sans conserver de données réelles dans Git.
 
-**En test :** ces méthodes ne font pas partie de `v0.1.0`. Les recherches globales, paginations et autres routes non confirmées restent hors du périmètre de cette PR. Aucun appel HTTP d'écriture n'est ajouté.
+**En test :** ces méthodes sont fusionnées dans `main` depuis la PR #9 mais ne font pas partie de `v0.1.0`. Les recherches globales, paginations et autres routes non confirmées restent hors de ce périmètre. Aucun appel HTTP d'écriture n'est ajouté. Le futur tag `v0.2.0` n'a pas été créé.
 
 ## [0.1.0] - 2026-11-12
 

@@ -1,10 +1,10 @@
-# Checklist de publication — v0.1.0
+# Checklist de publication — méthode commune
 
-**Statut : contenu de la version finalisé ; tag et GitHub Release à vérifier avant de les considérer publiés.** Le tag n'est jamais créé par les tests.
+**État actuel : `v0.1.0` déjà publiée ; candidat `v0.2.0` non tagué.** Ce document décrit les contrôles applicables à chaque future version. Les tests ne créent jamais de tag ni de GitHub Release.
 
 ## 1. Revue avant publication
 
-- [ ] PR P5 fusionnée et commit de `main` identifié.
+- [ ] La PR de préparation de la **version ciblée** est fusionnée et le commit exact de `main` est identifié.
 - [ ] README, `CHANGELOG.md`, contrats de lecture/écriture, statut des fonctionnalités et politique de versionnement à jour.
 - [ ] Signature publique des méthodes, noms des paramètres et exceptions examinés pour les intégrateurs.
 - [ ] Composer : `electraudio/loxya-php-client`, namespace `Electraudio\Loxya\`, PHP `^8.2`, extensions `curl` / `json`.
@@ -42,9 +42,9 @@ L'absence de recette SaaS exhaustive ne doit **pas** être présentée comme une
 
 ## 4. Publication uniquement après approbation explicite
 
-- [ ] Obtenir l'accord du responsable sur le **commit exact** et sur le nom de tag `v0.1.0`.
-- [ ] Vérifier qu'aucun tag `v0.1.0` n'existe.
-- [x] **Avant le tag**, préparer `CHANGELOG.md` avec la section `## [0.1.0] - 2026-11-12` et conserver `## [Unreleased]`.
+- [ ] Obtenir l'accord du responsable sur le **commit exact** et sur le nom du nouveau tag (par exemple `v0.2.0`).
+- [ ] Vérifier que le **nouveau** tag n'existe pas.
+- [ ] **Avant le tag**, déplacer les notes candidates de `CHANGELOG.md` sous un en-tête daté `## [0.2.0] - AAAA-MM-JJ` et conserver `## [Unreleased]`.
 - [ ] Fusionner le dernier commit documentaire ; vérifier la CI **sur ce commit exact**, puis le confirmer à nouveau comme cible du tag. Ne pas annoncer la publication avant son existence effective.
 - [ ] Créer et pousser le tag Git annoté uniquement après cet accord :
 
@@ -52,12 +52,12 @@ L'absence de recette SaaS exhaustive ne doit **pas** être présentée comme une
 git fetch --tags origin
 git checkout main
 git pull --ff-only origin main
-git tag -a v0.1.0 -m "Loxya PHP Client v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "Loxya PHP Client v0.2.0"
+git push origin v0.2.0
 ```
 
 - [ ] Vérifier que le tag cible le bon commit, que les artefacts de CI sont valides et que les notes de version signalent les fonctionnalités **En test**.
-- [ ] Préparer une GitHub Release depuis le tag **existant**, avec [les notes de v0.1.0](RELEASE-NOTES-v0.1.0.md) (la publier seulement après vérification du tag).
+- [ ] Préparer une GitHub Release depuis le nouveau tag **existant**, avec les [notes candidates v0.2.0](RELEASE-NOTES-v0.2.0.md), uniquement après vérification du tag.
 - [ ] Packagist éventuel, **sur décision distincte** ; ne pas présumer que la licence source disponible équivaut à une licence OSI.
 - [ ] Vérifier ensuite le README et ajuster son tableau de statut si nécessaire sans réécrire le tag publié.
 
@@ -65,6 +65,6 @@ Le champ `version` de Composer ne doit pas être modifié : Composer déduit la 
 
 ## 5. Communication aux intégrateurs
 
-Fournir le tag, le SHA, la liste des fonctionnalités utilisables, les prérequis PHP, les limites des routes non officielles, la documentation des exceptions et les liens aux notes de version. Le projet consommateur pourra utiliser `composer require electraudio/loxya-php-client:^0.1.0` avec la déclaration VCS requise et mettre à jour **son propre** `composer.lock`.
+Fournir le tag, le SHA, la liste des fonctionnalités utilisables, les prérequis PHP, les limites des routes non officielles, la documentation des exceptions et les liens aux notes de version. Le projet consommateur pourra utiliser `composer require electraudio/loxya-php-client:^0.2.0` **après publication** de cette version avec la déclaration VCS requise et mettre à jour **son propre** `composer.lock`.
 
 Le SDK ne déploie ni ne modifie aucun projet consommateur.
