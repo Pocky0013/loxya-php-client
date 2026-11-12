@@ -1,8 +1,29 @@
 # Loxya PHP Client
 
-Bibliothèque PHP pour consulter et modifier les bénéficiaires et les sociétés de [Loxya](https://loxya.com/) depuis une autre application.
+Bibliothèque PHP non officielle pour accéder depuis une application PHP aux routes HTTP internes de [Loxya](https://loxya.com/). Elle encapsule l'authentification, le transport HTTPS, les méthodes des ressources prises en charge et le traitement des erreurs. **Les sociétés et les bénéficiaires sont les premières ressources implémentées**, mais la bibliothèque n'est liée à aucun logiciel consommateur.
 
-Ce client utilise les routes HTTP internes de Loxya. **Il n'est pas officiel** : ces routes peuvent évoluer sans préavis. Il faut un compte Loxya disposant des droits nécessaires. Aucun accès SQL n'est requis.
+Il s'agit d'un **client PHP (SDK)**, pas d'un serveur REST, d'une API publique officielle ni d'un proxy à déployer. Chaque application l'installe avec Composer, fournit sa propre configuration Loxya et traite les réponses selon ses besoins.
+
+Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et peuvent changer sans préavis. L'utilisation requiert un compte Loxya autorisé avec les droits nécessaires ; aucun accès SQL n'est requis. Les évolutions sont limitées aux routes dont le comportement a été vérifié. Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour le périmètre architectural.
+
+## État du projet
+
+*Dernière mise à jour : 12 novembre 2026. Aucune version stable ni publication Packagist à ce jour.*
+
+| Fonctionnalité | Statut | Ce qui est disponible |
+|---|---|---|
+| Authentification et session | **Validé** | Connexion `POST /api/session`, JWT en mémoire, `session()` et gestion du 401 en lecture. |
+| Consultation des sociétés | **Validé** | `companies()` et `company()` : liste et fiche par ID. |
+| Consultation des bénéficiaires | **Validé** | `beneficiaries()` et `beneficiary()` : liste, fiche par ID et relation `company_id` dans les réponses. |
+| Pagination et recherche | **En test** | Paramètres utilisables ; les formats et cas limites doivent encore être vérifiés sur diverses instances SaaS. |
+| Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
+| Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
+| Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
+| Première version identifiée et Packagist | **En projet** | Le paquet s'installe actuellement depuis ce dépôt GitHub avec Composer. |
+
+**Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
+
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md) pour les formats et limites précis. Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
 
 ## Licence
 
@@ -57,7 +78,7 @@ Dotenv\Dotenv::createImmutable(__DIR__)->load();
 
 Dans un framework qui charge déjà les variables d'environnement, cette étape n'est pas nécessaire. Les variables d'environnement fournies directement par l'hébergeur fonctionnent aussi, sans fichier `.env`.
 
-**Portail Electraudio :** les paramètres peuvent rester dans le `config.env` existant, chargé par le bootstrap du portail. Il suffit d'y ajouter `LOXYA_BASE_URL`, `LOXYA_USERNAME` et `LOXYA_PASSWORD`. Aucun deuxième fichier de configuration n'est nécessaire.
+Si l'application possède déjà son propre chargeur d'environnement (par exemple un fichier `config.env` ou un gestionnaire de secrets), conservez-le : il suffit que les trois variables soient disponibles lors de l'appel à `Factory::fromEnvironment()`.
 
 ## Utilisation
 
@@ -72,8 +93,8 @@ $loxya = Factory::fromEnvironment();
 
 // Consulter des sociétés ou des bénéficiaires.
 $companies = $loxya->companies(page: 1, limit: 30);
-$company = $loxya->company(42);
-$beneficiary = $loxya->beneficiary(88);
+$company = $loxya->company(123);
+$beneficiary = $loxya->beneficiary(456);
 
 // Créer une société (opération d'écriture explicite).
 $newCompany = $loxya->createCompany([
@@ -97,6 +118,8 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
 
+Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule.
+
 Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
 
 ## Fonctionnement et limites
@@ -105,7 +128,9 @@ Le client s'authentifie auprès de `POST /api/session`, conserve le JWT uniqueme
 
 La méthode `session()` ne renvoie jamais le champ `token` de la réponse de session. Une lecture GET peut être renouvelée une fois après une erreur HTTP 401. **Les écritures POST et PUT ne sont jamais répétées automatiquement**, car une réponse perdue ne signifie pas nécessairement que l'opération a échoué. Une relecture est faite après chaque création ou modification.
 
-L'application utilisatrice reste responsable de ses permissions, de la recherche de doublons, des confirmations avant écriture et du rapprochement des identités. Le paquet ne synchronise pas automatiquement les contacts et ne gère aucune suppression.
+**Séparation des responsabilités :** le paquet échange avec Loxya et conserve les réponses distantes sans les adapter à un modèle métier tiers. L'application utilisatrice reste responsable des autorisations locales, du stockage, du traitement des données personnelles, de la recherche de doublons, des confirmations avant écriture et de toute synchronisation métier. Le paquet ne possède pas de base de données, ne synchronise pas automatiquement les contacts et ne propose aucune suppression.
+
+Pour étendre le connecteur à d'autres ressources, il faut d'abord vérifier les routes et leurs contrats, puis ajouter des méthodes documentées et des tests simulés. Une éventuelle API officielle pourra être prise en charge ultérieurement, sans garantie de compatibilité anticipée.
 
 ## Développement
 
@@ -115,6 +140,6 @@ composer test
 composer lint
 ```
 
-Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. La CI vérifie PHP 8.2, 8.4 et 8.5. Les scénarios couvrent aussi les réponses JSON invalides, les listes vides, les 401 répétés, les erreurs HTTP et les résultats ambigus d'écriture. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; cette version de la bibliothèque reste à éprouver dans son application consommatrice.
+Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. La CI vérifie PHP 8.2, 8.4 et 8.5. Les scénarios couvrent aussi les réponses JSON invalides, les listes vides, les 401 répétés, les erreurs HTTP et les résultats ambigus d'écriture. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; toute application consommatrice doit vérifier la compatibilité avec sa propre instance et ses droits.
 
-Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. L'utilisation des routes internes a été confirmée pour le projet Electraudio, sans garantie de stabilité d'une API officielle. Une vérification de compatibilité reste nécessaire lors des évolutions de Loxya.
+Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. L'utilisation des routes internes a été autorisée pour l'intégration initiale Electraudio, sans garantie de stabilité et sans présumer des conditions d'utilisation applicables aux autres utilisateurs. Une vérification de compatibilité reste nécessaire lors des évolutions de Loxya.

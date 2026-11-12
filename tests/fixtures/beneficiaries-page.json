@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "id": 42,
+      "first_name": "Camille",
+      "last_name": "Exemple",
+      "email": "camille@example.invalid",
+      "country": "CH",
+      "company_id": 42,
+      "note": null
+    },
+    {
+      "id": 12,
+      "first_name": "Noémie",
+      "last_name": "Fictive",
+      "country": "CH",
+      "company_id": null,
+      "phone": null
+    },
+    {
+      "id": 99,
+      "first_name": "Personne",
+      "country": "CH"
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "total": {
+      "items": 3,
+      "pages": 1
+    }
+  }
+}

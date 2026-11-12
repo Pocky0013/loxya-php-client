@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "id": 42,
+      "legal_name": "Exemple SA",
+      "country": "CH",
+      "phone": "+41 00 000 00 00",
+      "street": "Rue fictive 7",
+      "additional_street": null,
+      "postal_code": "1000",
+      "locality": "Lausanne",
+      "note": null
+    },
+    {
+      "id": 55,
+      "legal_name": "Association fictive",
+      "country": "CH",
+      "phone": null
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "total": {
+      "items": 2,
+      "pages": 1
+    }
+  }
+}
