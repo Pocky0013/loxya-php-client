@@ -16,14 +16,14 @@ Copyright © 2026 Electraudio Sàrl.
 
 PHP 8.2+, extensions `curl` et `json`, Composer 2.
 
-Tant que le dépôt est privé et absent de Packagist, ajoutez-le à votre application comme dépôt VCS :
+Tant que le paquet n'est pas référencé sur Packagist, ajoutez ce dépôt public à votre application comme dépôt VCS :
 
 ```bash
 composer config repositories.loxya vcs https://github.com/Pocky0013/loxya-php-client
 composer require electraudio/loxya-php-client:dev-main
 ```
 
-Un accès au dépôt GitHub est requis. Lorsqu'une version stable sera publiée sur Packagist, la déclaration VCS ne sera plus nécessaire.
+Aucune authentification GitHub n'est nécessaire pour télécharger ce dépôt public. Après publication sur Packagist et création d'une version, la déclaration VCS ne sera plus nécessaire.
 
 Composer installe le paquet pendant la préparation de l'application ou son déploiement, pas à chaque ouverture de page.
 
