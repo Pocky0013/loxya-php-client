@@ -1,0 +1,12 @@
+# Secrets et donnees sensibles : jamais en Git
+/config.local.php
+/config.*.local.php
+/.env
+/.env.*
+!/.env.example
+*.log
+*.bak
+*.old
+.DS_Store
+/vendor/
+/.phpunit.cache/
