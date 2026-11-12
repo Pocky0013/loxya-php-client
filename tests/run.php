@@ -134,7 +134,7 @@ test('P3 : creation et modification confirmees par les champs demandes', functio
 });
 
 test('P3 : ID absent ou different lors de la relecture est incertain', function (): void {
-    foreach ([[], ['id' => 99], ['id' => '42']] as $readback) {
+    foreach ([['note' => 'Aucun ID'], ['id' => 99], ['id' => '42']] as $readback) {
         $f = login(new FakeTransport())
             ->queue('PUT', '/companies/42', 200, ['id' => 42])
             ->queue('GET', '/companies/42', 200, $readback);
@@ -144,10 +144,6 @@ test('P3 : ID absent ou different lors de la relecture est incertain', function 
             ensure($e->reason === 'id_mismatch', 'Cause ID non confirmee');
             ensure($e->operation === 'update' && $e->resourceId === 42, 'Contexte operation manquant');
             ensure(count($f->calls) === 3 && $f->remaining() === 0, 'Ecriture relancee');
-            continue;
-        } catch (ProtocolException $e) {
-            // {} est rejete comme objet JSON inattendu avant toute comparaison.
-            ensure($readback === [] && count($f->calls) === 3, 'Erreur de protocole inattendue');
             continue;
         }
         throw new RuntimeException('ID de relecture non verifie');
