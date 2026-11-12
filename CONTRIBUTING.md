@@ -38,6 +38,10 @@ Ne qualifier une fonctionnalité de **Validé** que si elle est implémentée, t
 
 Les identifiants Loxya restent uniquement dans la configuration de l'application appelante. Ne jamais déposer de secrets, de JWT, de données personnelles réelles ou de captures de réponses privées.
 
+## Recette SaaS contrôlée
+
+Les tests automatisés ne doivent jamais utiliser d'identifiants SaaS. La [procédure générique](docs/RECETTE-SAAS.md) et le diagnostic `php bin/loxya-read-check.php --check` permettent une vérification de lecture sur une instance autorisée, sans exposer les valeurs sources. Les écritures de test exigent une autorisation explicite distincte, sur des fiches fictives.
+
 ## Évolution vers une API officielle
 
 Si Loxya publie une API officielle, comparer d'abord les contrats HTTP, l'authentification et les réponses avec les méthodes actuelles. Une migration doit minimiser les ruptures pour les applications consommatrices ; **ne pas ajouter d'abstraction spéculative avant de disposer d'une API vérifiée**.

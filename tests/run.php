@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__.'/../vendor/autoload.php';
+require __DIR__.'/../scripts/ReadOnlyProbe.php';
 
 use Electraudio\Loxya\Client;
 use Electraudio\Loxya\HttpException;
@@ -109,7 +110,6 @@ test('Modification societe: PUT puis lecture de controle', function (): void {
         ->queue('GET', '/companies/42', 200, ['id' => 42, 'note' => 'Nouvelle note']);
     ensure(client($f)->updateCompany(42, ['note' => 'Nouvelle note'])['note'] === 'Nouvelle note', 'Note non relue');
 });
-
 
 test('P3 : creation et modification confirmees par les champs demandes', function (): void {
     $companyFields = ['legal_name' => 'Entreprise fictive', 'country' => 'CH', 'note' => null];
@@ -713,6 +713,78 @@ test('Contrat de lecture : pagination et recherche ne reconstruisent pas la repo
         ->queue('GET', '/companies?page=5&limit=1&search=Caf%C3%A9', 200, $page);
     ensure(client($f)->companies(5, 1, 'Café') === $page, 'Pagination calculee ou modifiee');
     ensure($f->remaining() === 0, 'Requete de page differente');
+});
+
+
+test('Diagnostic P4 : controles de lecture et aucune donnee source publiee', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31, 'name' => 'SECRET_SESSION', 'token' => 'SECRET_TOKEN'])
+        ->queue('GET', '/companies?page=1&limit=1', 200, [
+            'data' => [['id' => 42, 'legal_name' => 'SECRET_COMPANY']],
+            'pagination' => ['currentPage' => 1, 'total' => ['items' => 1, 'pages' => 1]],
+        ])
+        ->queue('GET', '/companies/42', 200, [
+            'id' => 42, 'legal_name' => 'SECRET_COMPANY', 'phone' => '+41 00 123 45 67',
+        ])
+        ->queue('GET', '/beneficiaries?page=1&limit=1', 200, [
+            'data' => [['id' => 88, 'first_name' => 'SECRET_PERSON']],
+            'pagination' => ['currentPage' => 1, 'total' => ['items' => 1, 'pages' => 1]],
+        ])
+        ->queue('GET', '/beneficiaries/88', 200, [
+            'id' => 88, 'first_name' => 'SECRET_PERSON', 'last_name' => 'Fake',
+            'company_id' => 42, 'email' => 'secret@example.invalid',
+        ]);
+    $report = ReadOnlyProbe::inspect(client($f));
+    ensure($report['session'] === 'ok', 'Session non verifiee');
+    ensure($report['companies']['detail'] === 'ok' && $report['beneficiaries']['detail'] === 'ok',
+        'Details non verifies');
+    ensure($report['companies']['field_types']['legal_name'] === 'string', 'Type societe incorrect');
+    ensure($report['beneficiaries']['field_types']['company_id'] === 'integer', 'Type relation incorrect');
+    ensure($report['companies']['pagination_types']['total.items'] === 'integer', 'Type total incorrect');
+
+    $encoded = json_encode($report, JSON_THROW_ON_ERROR);
+    foreach (['SECRET_SESSION', 'SECRET_TOKEN', 'SECRET_COMPANY', 'SECRET_PERSON', 'secret@example.invalid',
+        '+41 00 123 45 67', '"42"', '"88"'] as $sensitive) {
+        ensure(!str_contains($encoded, $sensitive), 'Information source divulguee dans le rapport');
+    }
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET' || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Diagnostic a declenche une ecriture non autorisee');
+    }
+    ensure($f->remaining() === 0, 'Requetes de diagnostic non consommees');
+});
+
+test('Diagnostic P4 : liste vide sans appel de detail', function (): void {
+    $empty = ['data' => [], 'pagination' => ['currentPage' => 1, 'total' => ['items' => 0, 'pages' => 0]]];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', '/companies?page=1&limit=1', 200, $empty)
+        ->queue('GET', '/beneficiaries?page=1&limit=1', 200, $empty);
+    $report = ReadOnlyProbe::inspect(client($f));
+    ensure($report['companies']['detail'] === 'skipped_empty', 'Societe inexistante relue');
+    ensure($report['beneficiaries']['detail'] === 'skipped_empty', 'Beneficiaire inexistant relu');
+    ensure($report['companies']['field_types'] === [], 'Fausse fiche detaillee');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Appel de detail non prevu');
+});
+
+test('Diagnostic P4 : ID invalide ne declenche pas de lecture de detail', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', '/companies?page=1&limit=1', 200, [
+            'data' => [['id' => '42', 'legal_name' => 'SECRET_NAME']],
+            'pagination' => [],
+        ])
+        ->queue('GET', '/beneficiaries?page=1&limit=1', 200, [
+            'data' => [['email' => 'secret@example.invalid']],
+            'pagination' => [],
+        ]);
+    $report = ReadOnlyProbe::inspect(client($f));
+    ensure($report['companies']['detail'] === 'skipped_invalid_id', 'ID chaine utilise');
+    ensure($report['companies']['field_types']['id'] === 'string', 'Type ID chaine perdu');
+    ensure($report['beneficiaries']['detail'] === 'skipped_invalid_id', 'Fiche sans ID relue');
+    ensure($report['beneficiaries']['field_types']['id'] === 'absent', 'Absence ID non preservee');
+    ensure(!str_contains(json_encode($report, JSON_THROW_ON_ERROR), 'SECRET_NAME'), 'Nom divulgue');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Lecture de detail sur ID incorrect');
 });
 
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

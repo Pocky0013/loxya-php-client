@@ -16,6 +16,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Consultation des sociétés | **Validé** | `companies()` et `company()` : liste et fiche par ID. |
 | Consultation des bénéficiaires | **Validé** | `beneficiaries()` et `beneficiary()` : liste, fiche par ID et relation `company_id` dans les réponses. |
 | Pagination et recherche | **En test** | Paramètres utilisables ; les formats et cas limites doivent encore être vérifiés sur diverses instances SaaS. |
+| Diagnostic SaaS en lecture seule | **En test** | Outil CLI générique disponible ; vérification sur instance réelle à effectuer par chaque intégrateur. |
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
 | Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
@@ -23,7 +24,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 
 **Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
 
-Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md) pour les formats et limites précis. Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md) pour les formats, les limites et les vérifications non destructives. Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
 
 ## Licence
 
@@ -131,6 +132,17 @@ La méthode `session()` ne renvoie jamais le champ `token` de la réponse de ses
 **Séparation des responsabilités :** le paquet échange avec Loxya et conserve les réponses distantes sans les adapter à un modèle métier tiers. L'application utilisatrice reste responsable des autorisations locales, du stockage, du traitement des données personnelles, de la recherche de doublons, des confirmations avant écriture et de toute synchronisation métier. Le paquet ne possède pas de base de données, ne synchronise pas automatiquement les contacts et ne propose aucune suppression.
 
 Pour étendre le connecteur à d'autres ressources, il faut d'abord vérifier les routes et leurs contrats, puis ajouter des méthodes documentées et des tests simulés. Une éventuelle API officielle pourra être prise en charge ultérieurement, sans garantie de compatibilité anticipée.
+
+## Diagnostic en lecture seule
+
+Un diagnostic générique permet de vérifier une instance Loxya autorisée **sans écrire de fiches** et sans afficher de données personnelles. L'environnement du processus doit déjà fournir les trois variables `LOXYA_*`.
+
+```bash
+php bin/loxya-read-check.php --help
+php bin/loxya-read-check.php --check
+```
+
+La commande `--check` effectue la connexion puis des lectures limitées à une page par ressource et à une fiche d'exemple. Le statut des champs affiché concerne seulement cet échantillon. Voir [docs/RECETTE-SAAS.md](docs/RECETTE-SAAS.md).
 
 ## Développement
 
