@@ -10,7 +10,7 @@ Ce bloc décrit la première version **en préparation**. Il ne constitue ni un 
 
 #### Ajouté
 
-- Installation Composer (`electraudio/loxya-php-client`), namespace `Electraudio\\Loxya\\` et compatibilité PHP `^8.2`.
+- Installation Composer (`electraudio/loxya-php-client`), namespace `Electraudio\Loxya\` et compatibilité PHP `^8.2`.
 - Authentification Loxya par session, jeton Bearer conservé en mémoire et consultation de la session.
 - Lecture des sociétés et bénéficiaires (liste paginée, recherche et fiche individuelle).
 - Création et mise à jour explicites de ces deux ressources ; association ou dissociation d'un bénéficiaire et d'une société.
