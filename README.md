@@ -8,7 +8,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 
 ## État du projet
 
-*Dernière mise à jour : 12 novembre 2026. Aucune version stable ni publication Packagist à ce jour.*
+*Dernière mise à jour : 12 novembre 2026. **`v0.1.0` est publiée en préversion expérimentale** ; `v0.2.0` est en préparation. Pas de publication Packagist.*
 
 | Fonctionnalité | Statut | Ce qui est disponible |
 |---|---|---|
@@ -19,9 +19,10 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Diagnostic SaaS en lecture seule | **En test** | Outil CLI générique disponible ; vérification sur instance réelle à effectuer par chaque intégrateur. |
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
-| Événements : liste, détail et matériel affecté (P6.1) | **En test** | Deux méthodes candidates en PR #9, fondées sur une capture réseau SaaS, **non encore publiées**. |
+| Événements : liste, détail et matériel affecté (P6.1) | **En test** | `bookingsInPeriod()` et `event()` intégrées à `main` par la PR #9 ; CI simulée et formes observées sur une instance SaaS, **pas encore publiées dans une version taguée**. |
 | Autres ressources Loxya | **En projet** | Recherche globale d'événements, listes paginées, catalogue matériel et parcs : à étudier séparément. |
-| Première version `v0.1.0` | **En test** | Contenu et notes finalisés. Disponibilité de la version à vérifier dans les [Releases](https://github.com/Pocky0013/loxya-php-client/releases). |
+| Version `v0.1.0` | **Préversion publiée** | [Release GitHub](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.1.0) sur le commit `efa99bf8` ; contacts, sans méthodes P6.1. |
+| Version `v0.2.0` | **En projet** | Préparation d'une version intégrant les lectures d'événements P6.1 ; aucun tag ni release à ce jour. |
 | Packagist | **En projet** | Installation depuis GitHub/VCS ; inscription Packagist non décidée. |
 
 **Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
@@ -51,13 +52,13 @@ Aucune authentification GitHub n'est nécessaire pour télécharger ce dépôt p
 
 Composer installe le paquet pendant la préparation de l'application ou son déploiement, pas à chaque ouverture de page.
 
-**Après création du tag `v0.1.0`** (non publié à ce jour), une application disposant du dépôt VCS pourra utiliser une contrainte identifiée :
+**La préversion `v0.1.0` est publiée.** Une application disposant du dépôt VCS peut utiliser cette version figée :
 
 ```bash
 composer require electraudio/loxya-php-client:^0.1.0
 ```
 
-Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer le commit installé.
+Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer le commit installé. Pour essayer les méthodes P6.1 **avant** le futur tag `v0.2.0`, une application de développement peut utiliser `dev-main` et verrouiller le SHA dans son `composer.lock`. **`^0.1.0` ne récupère pas automatiquement `0.2.0`** : l'application devra décider explicitement du changement de contrainte après la publication du tag.
 
 ## Configuration
 
@@ -135,7 +136,7 @@ Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées c
 
 ### P6.1 — Lecture des événements et de leur matériel (candidat non publié)
 
-Cette évolution est développée **sur la PR #9 uniquement** ; elle ne fait **pas** partie du tag `v0.1.0`.
+Ces méthodes sont **fusionnées dans `main` depuis la PR #9**, avec tests PHP 8.2, 8.4 et 8.5 réussis, mais elles ne font **pas** partie du tag `v0.1.0` : leur première version candidate est `v0.2.0`.
 
 | Méthode candidate | Route | Réponse |
 |---|---|---|
@@ -145,13 +146,17 @@ Cette évolution est développée **sur la PR #9 uniquement** ; elle ne fait **p
 Ces deux routes ont été observées en **lecture seule** dans une capture réseau d'une instance Loxya SaaS autorisée. Les réponses sont conservées sans transformation dans le SDK.
 
 ```php
-// Exemple pour une future version : non disponible dans v0.1.0.
+// Disponible sur main, puis dans v0.2.0 apres publication ; pas dans v0.1.0.
 $bookings = $client->bookingsInPeriod('2027-05-01', '2027-05-31');
 foreach ($bookings as $booking) {
     if (($booking['entity'] ?? null) !== 'event') {
         continue;
     }
-    $event = $client->event($booking['id']);
+    $id = $booking['id'] ?? null;
+    if (!is_int($id) || $id < 1) {
+        continue;
+    }
+    $event = $client->event($id);
     $materials = $event['materials'] ?? null;
     if (!is_array($materials) || !array_is_list($materials)) {
         throw new \UnexpectedValueException('Materiel de l evenement non disponible.');
@@ -164,7 +169,7 @@ foreach ($bookings as $booking) {
 }
 ```
 
-Les routes de recherche courte, de pagination globale, de disponibilité du catalogue et les variantes des fiches bookings restent à étudier : elles ne sont **pas** ajoutées dans cette première étape. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md).
+Les routes de recherche courte, de pagination globale, de disponibilité du catalogue et les variantes des fiches bookings restent à étudier : elles ne sont **pas** ajoutées dans cette première étape. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md) et la [recette générique P6.1](docs/RECETTE-INTEGRATEUR-P6.md) avant une mise à jour d'application.
 
 ## Fonctionnement et limites
 
