@@ -21,7 +21,10 @@ final class Client
     /** Lit la session sans exposer le jeton. */
     public function session(): array
     {
-        return $this->request('GET', '/session');
+        $session = $this->request('GET', '/session');
+        // La reponse de session ne doit jamais exposer le JWT a l'application.
+        unset($session['token']);
+        return $session;
     }
 
     /** Liste paginee ; la recherche est facultative. */
@@ -123,8 +126,14 @@ final class Client
         }
         $result = $this->request('GET', $path.'?'.http_build_query($params, '', '&', PHP_QUERY_RFC3986));
         if (!isset($result['data'], $result['pagination'])
-            || !is_array($result['data']) || !is_array($result['pagination'])) {
+            || !is_array($result['data']) || !array_is_list($result['data'])
+            || !is_array($result['pagination'])) {
             throw new ProtocolException('Format de pagination Loxya inattendu.');
+        }
+        foreach ($result['data'] as $contact) {
+            if (!is_array($contact) || array_is_list($contact)) {
+                throw new ProtocolException('Entree de liste de contacts Loxya inattendue.');
+            }
         }
         return $result;
     }
