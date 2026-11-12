@@ -7,20 +7,31 @@ use Electraudio\Loxya\Client;
 use Electraudio\Loxya\HttpException;
 use Electraudio\Loxya\Factory;
 use Electraudio\Loxya\HttpResponse;
+use Electraudio\Loxya\ProtocolException;
 use Electraudio\Loxya\Transport;
+use Electraudio\Loxya\TransportException;
 
 final class FakeTransport implements Transport
 {
-    /** @var list<array{method:string,path:string,status:int,body:string}> */
+    /** @var list<array{method:string,path:string,status:int,body:string,fail?:bool}> */
     private array $items = [];
     /** @var list<array{method:string,path:string,headers:array,payload:?array}> */
     public array $calls = [];
 
     public function queue(string $method, string $path, int $status, array $body): self
     {
-        $this->items[] = compact('method', 'path', 'status') + [
-            'body' => json_encode($body, JSON_THROW_ON_ERROR),
-        ];
+        return $this->queueRaw($method, $path, $status, json_encode($body, JSON_THROW_ON_ERROR));
+    }
+
+    public function queueRaw(string $method, string $path, int $status, string $body): self
+    {
+        $this->items[] = compact('method', 'path', 'status', 'body');
+        return $this;
+    }
+
+    public function queueTransportFailure(string $method, string $path): self
+    {
+        $this->items[] = ['method' => $method, 'path' => $path, 'status' => 0, 'body' => '', 'fail' => true];
         return $this;
     }
 
@@ -31,6 +42,9 @@ final class FakeTransport implements Transport
             throw new LogicException('Appel HTTP non prevu: '.$method.' '.$path);
         }
         $this->calls[] = compact('method', 'path', 'headers', 'payload');
+        if ($item['fail'] ?? false) {
+            throw new TransportException('Echec de transport HTTPS simule.');
+        }
         return new HttpResponse($item['status'], $item['body']);
     }
 
@@ -257,5 +271,224 @@ test('Temporisations non numeriques refusees', function (): void {
     }
     throw new RuntimeException('Temporisation non numerique acceptee');
 });
+
+
+test('Une reponse de session contenant un token ne le retourne pas', function (): void {
+    $f = login(new FakeTransport())->queue('GET', '/session', 200, [
+        'id' => 31, 'name' => 'staff', 'token' => 'JWT_A_NE_PAS_EXPOSER',
+    ]);
+    $session = client($f)->session();
+    ensure(($session['id'] ?? null) === 31, 'Session non restituee');
+    ensure(!array_key_exists('token', $session), 'JWT expose dans session()');
+    ensure($f->remaining() === 0, 'Requetes de session en attente');
+});
+
+test('Liste de beneficiaires vide avec pagination conservee', function (): void {
+    $pagination = ['currentPage' => 1, 'total' => ['items' => 0, 'pages' => 0]];
+    $f = login(new FakeTransport())->queue('GET', '/beneficiaries?page=1&limit=100', 200, [
+        'data' => [], 'pagination' => $pagination,
+    ]);
+    $list = client($f)->beneficiaries(1, 100);
+    ensure($list === ['data' => [], 'pagination' => $pagination], 'Liste vide incorrecte');
+});
+
+test('Structures invalides de listes refusees explicitement', function (): void {
+    $invalid = [
+        ['pagination' => ['currentPage' => 1]],
+        ['data' => [], 'pagination' => 'invalide'],
+        ['data' => ['cle' => ['id' => 42]], 'pagination' => []],
+        ['data' => [42], 'pagination' => []],
+        ['data' => [['unexpected']], 'pagination' => []],
+    ];
+    foreach ($invalid as $body) {
+        $f = login(new FakeTransport())->queue('GET', '/companies?page=1&limit=30', 200, $body);
+        try {
+            client($f)->companies();
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2, 'Appel supplementaire apres liste invalide');
+            continue;
+        }
+        throw new RuntimeException('Liste mal formee acceptee');
+    }
+});
+
+test('JSON mal forme, vide, scalaire ou liste refuse pour une fiche', function (): void {
+    foreach (['', 'not-json', '[]', '"hello"', 'null', '{}'] as $body) {
+        $f = login(new FakeTransport())->queueRaw('GET', '/companies/42', 200, $body);
+        try {
+            client($f)->company(42);
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2, 'Requete supplementaire sur JSON invalide');
+            continue;
+        }
+        throw new RuntimeException('Reponse JSON invalide acceptee : '.$body);
+    }
+});
+
+test('Erreurs HTTP des lectures transmises sans corps distant', function (): void {
+    foreach ([403, 404, 429, 500] as $status) {
+        $f = login(new FakeTransport())->queue('GET', '/beneficiaries/88', $status, [
+            'message' => 'Donnees privees NE_PAS_EXPOSER', 'token' => 'JWT_PRIVE',
+        ]);
+        try {
+            client($f)->beneficiary(88);
+        } catch (HttpException $e) {
+            ensure($e->status === $status && $e->path === '/beneficiaries/88', 'Statut ou chemin incorrect');
+            ensure(!str_contains($e->getMessage(), 'NE_PAS_EXPOSER'), 'Corps HTTP divulgue');
+            ensure(!str_contains($e->getMessage(), 'JWT_PRIVE'), 'Jeton divulgue');
+            ensure(count($f->calls) === 2, 'Erreur HTTP rejouee');
+            continue;
+        }
+        throw new RuntimeException('HTTP '.$status.' non remonte');
+    }
+});
+
+test('Deux erreurs 401 sur GET ne provoquent qu une seule reconnexion', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/companies/42', 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'JWT2'])
+        ->queue('GET', '/companies/42', 401, ['error' => 'still expired']);
+    try {
+        client($f)->company(42);
+    } catch (HttpException $e) {
+        ensure($e->status === 401, 'Second 401 non remonte');
+        ensure(count($f->calls) === 4, 'Plus d une reconnexion GET');
+        ensure($f->remaining() === 0, 'Requetes inattendues');
+        return;
+    }
+    throw new RuntimeException('Second 401 accepte');
+});
+
+test('Un POST refuse avec 401 n est jamais rejoue', function (): void {
+    $f = login(new FakeTransport())->queue('POST', '/companies', 401, ['error' => 'expired']);
+    try {
+        client($f)->createCompany(['legal_name' => 'Fictif', 'country' => 'CH']);
+    } catch (HttpException $e) {
+        ensure($e->status === 401 && count($f->calls) === 2, 'POST repete ou relecture');
+        return;
+    }
+    throw new RuntimeException('HTTP 401 sur POST accepte');
+});
+
+test('Echec de transport pendant POST ou PUT : pas de nouvel essai', function (): void {
+    foreach (['POST', 'PUT'] as $method) {
+        $path = $method === 'POST' ? '/companies' : '/companies/42';
+        $f = login(new FakeTransport())->queueTransportFailure($method, $path);
+        try {
+            if ($method === 'POST') {
+                client($f)->createCompany(['legal_name' => 'Fictif', 'country' => 'CH']);
+            } else {
+                client($f)->updateCompany(42, ['note' => 'Test fictif']);
+            }
+        } catch (TransportException $e) {
+            ensure(count($f->calls) === 2, 'Ecriture rejouee apres erreur transport');
+            ensure(!str_contains($e->getMessage(), 'Fictif'), 'Donnees divulguees');
+            continue;
+        }
+        throw new RuntimeException('Erreur de transport '.$method.' non remontee');
+    }
+});
+
+test('Creation sans ID fiable : pas de nouveau POST', function (): void {
+    foreach ([[], ['id' => '42'], ['id' => 0]] as $created) {
+        $f = login(new FakeTransport())->queue('POST', '/companies', 201, $created);
+        try {
+            client($f)->createCompany(['legal_name' => 'Fictif', 'country' => 'CH']);
+        } catch (ProtocolException $e) {
+            ensure(count($f->calls) === 2, 'Creation renvoyee');
+            ensure($e instanceof ProtocolException, 'Reponse de creation invalide non signalee');
+            continue;
+        }
+        throw new RuntimeException('Reponse de creation sans ID valide acceptee');
+    }
+});
+
+test('Pagination, recherche et identifiants invalides refuses avant le reseau', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        fn () => $c->companies(0),
+        fn () => $c->companies(1, 0),
+        fn () => $c->companies(1, 101),
+        fn () => $c->companies(1, 30, 'a'),
+        fn () => $c->companies(1, 30, str_repeat('a', 181)),
+        fn () => $c->beneficiaries(1, 30, "\xFF"),
+        fn () => $c->company(0),
+        fn () => $c->beneficiary(-1),
+    ] as $invalid) {
+        try {
+            $invalid();
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Parametre de lecture invalide accepte');
+    }
+    ensure($f->calls === [], 'Connexion effectuee avant validation');
+});
+
+test('Relation deja identique : aucune ecriture', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/companies/42', 200, ['id' => 42])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => 42]);
+    $res = client($f)->setBeneficiaryCompany(88, 42, 42);
+    ensure($res['company_id'] === 42 && count($f->calls) === 3, 'Ecriture inutile');
+});
+
+test('Dissociation de societe suivie de relecture', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => 42])
+        ->queue('PUT', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => null])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => null]);
+    $res = client($f)->setBeneficiaryCompany(88, null, 42);
+    ensure(array_key_exists('company_id', $res) && $res['company_id'] === null, 'Dissociation non confirmee');
+    ensure(($f->calls[2]['payload'] ?? []) === ['company_id' => null], 'Payload de dissociation incorrect');
+});
+
+test('Relation inconnue : aucune ecriture', function (): void {
+    $f = login(new FakeTransport())->queue('GET', '/beneficiaries/88', 200, ['id' => 88]);
+    try {
+        client($f)->setBeneficiaryCompany(88, null, null);
+    } catch (ProtocolException) {
+        ensure(count($f->calls) === 2, 'Ecriture malgre relation inconnue');
+        return;
+    }
+    throw new RuntimeException('Absence de company_id acceptee');
+});
+
+if (extension_loaded('curl')) {
+    test('URLs HTTPS hostiles et delais hors bornes refuses', function (): void {
+        $valid = [
+            'base_url' => 'https://demo.loxya.app',
+            'username' => 'integration',
+            'password' => 'mot-de-passe-de-test',
+        ];
+        foreach ([
+            'http://demo.loxya.app',
+            'https://user:pass@demo.loxya.app',
+            'https://demo.loxya.app/api',
+            'https://demo.loxya.app?target=other',
+            'https://demo.loxya.app:8443',
+        ] as $url) {
+            try {
+                Factory::fromArray(array_replace($valid, ['base_url' => $url]));
+            } catch (InvalidArgumentException) {
+                continue;
+            }
+            throw new RuntimeException('URL invalide acceptee : '.$url);
+        }
+        foreach ([
+            ['connect_timeout' => 0],
+            ['timeout' => 121],
+            ['connect_timeout' => 31, 'timeout' => 30],
+        ] as $invalid) {
+            try {
+                Factory::fromArray(array_replace($valid, $invalid));
+            } catch (InvalidArgumentException) {
+                continue;
+            }
+            throw new RuntimeException('Temporisation invalide acceptee');
+        }
+    });
+}
 
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

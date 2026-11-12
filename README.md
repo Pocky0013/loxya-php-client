@@ -97,13 +97,13 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
 
-Les listes renvoient `data` et `pagination`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
+Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
 
 ## Fonctionnement et limites
 
 Le client s'authentifie auprès de `POST /api/session`, conserve le JWT uniquement en mémoire et l'envoie dans les requêtes suivantes. Les connexions utilisent HTTPS, avec vérification TLS et sans redirection vers un autre serveur. L'hôte est déduit de l'URL configurée.
 
-Une lecture GET peut être renouvelée une fois après une erreur HTTP 401. **Les écritures POST et PUT ne sont jamais répétées automatiquement**, car une réponse perdue ne signifie pas nécessairement que l'opération a échoué. Une relecture est faite après chaque création ou modification.
+La méthode `session()` ne renvoie jamais le champ `token` de la réponse de session. Une lecture GET peut être renouvelée une fois après une erreur HTTP 401. **Les écritures POST et PUT ne sont jamais répétées automatiquement**, car une réponse perdue ne signifie pas nécessairement que l'opération a échoué. Une relecture est faite après chaque création ou modification.
 
 L'application utilisatrice reste responsable de ses permissions, de la recherche de doublons, des confirmations avant écriture et du rapprochement des identités. Le paquet ne synchronise pas automatiquement les contacts et ne gère aucune suppression.
 
@@ -115,6 +115,6 @@ composer test
 composer lint
 ```
 
-Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; cette version de la bibliothèque reste à éprouver dans son application consommatrice.
+Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. La CI vérifie PHP 8.2, 8.4 et 8.5. Les scénarios couvrent aussi les réponses JSON invalides, les listes vides, les 401 répétés, les erreurs HTTP et les résultats ambigus d'écriture. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; cette version de la bibliothèque reste à éprouver dans son application consommatrice.
 
 Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. L'utilisation des routes internes a été confirmée pour le projet Electraudio, sans garantie de stabilité d'une API officielle. Une vérification de compatibilité reste nécessaire lors des évolutions de Loxya.
