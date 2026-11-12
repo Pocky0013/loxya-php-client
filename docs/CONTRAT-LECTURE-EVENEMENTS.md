@@ -1,130 +1,99 @@
-# P6.1 — Contrat candidat de lecture des événements et bookings
+# P6.1 — Contrat de lecture des événements et du matériel affecté
 
-**Statut : En test, uniquement en branche brouillon.** Une capture réseau SaaS fournie par un utilisateur autorisé confirme sur **une instance** les structures de `GET /api/events/{id}`, `GET /api/materials/while-event/{id}` et `GET /api/bookings?paginated=0`. Aucune requête active ni écriture sur le SaaS n'a été lancée pour cette validation.  
-**Paquet :** `electraudio/loxya-php-client`, SDK PHP réutilisable et indépendant.  
-**Source exploratoire :** code public [Loxya/Loxya, commit `2ce970474d8bd76e0f9da739c10fb33eb445e587`](https://github.com/Loxya/Loxya/tree/2ce970474d8bd76e0f9da739c10fb33eb445e587) (consulté le 12 novembre 2026).
+**Statut : candidat non publié (PR #9), en test.**  
+**Périmètre : SDK PHP générique `electraudio/loxya-php-client`, lecture seule.**  
+**Sources :** formes observées dans deux captures réseau HAR d'une instance SaaS autorisée (analysées localement, non déposées dans Git) et [code public de Loxya](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Config/routes.php).
 
-Les informations ci-dessous sont **des observations de code source public**, pas un contrat officiel de l'éditeur, ni une preuve que les mêmes routes, réponses ou droits sont disponibles sur une instance Loxya SaaS. La branche doit **rester non fusionnée** tant que `v0.1.0` n'est pas figée par un tag et que le périmètre d'accès aux nouvelles routes n'est pas confirmé.
+Les routes utilisées sont **internes et non officielles**. Le fait qu'elles existent sur une instance ne garantit ni leur présence sur d'autres instances ni la pérennité de leurs réponses. Le périmètre d'utilisation doit rester conforme aux autorisations de l'instance SaaS.
 
-## Méthodes PHP proposées
+## Parcours couvert
 
-| Méthode | Route HTTP interne | Contrat actuellement attendu |
+1. **Lister les événements d'une période** avec `bookingsInPeriod($startDate, $endDate)`.
+2. **Lire la fiche d'un événement identifié** avec `event($id)`.
+3. **Lire les lignes de matériel affecté** dans `$event['materials']`, notamment `id`, `reference`, `name` et `quantity`.
+
+Aucune synchronisation, stockage applicatif, transformation métier, connexion Bexio ou modification d'un événement n'appartient à ce contrat. Les deux méthodes sont des lectures GET ; la connexion `POST /api/session` existe déjà dans le SDK pour établir la session.
+
+## 1. Liste des événements d'une période
+
+`bookingsInPeriod(string $startDate, string $endDate): array`
+
+**Route :** `GET /api/bookings?paginated=0&period[start]=AAAA-MM-JJ&period[end]=AAAA-MM-JJ`, avec encodage des paramètres par `http_build_query`. Les deux dates sont obligatoires au format strict `YYYY-MM-DD`, et la date de fin doit être supérieure ou égale à celle de début.
+
+**Format observé :** tableau JSON à la racine, même lorsque la liste est vide (`[]`). Les éléments observés sont des objets contenant notamment :
+
+| Champ | Type observé | Signification |
 |---|---|---|
-| `eventSuggestions(?string $search = null): array` | `GET /api/events` | `{count:int, data:list<objet>}`, recherche courte non paginée |
-| `event(int $id): array` | `GET /api/events/{id}` | JSON objet, représentation détaillée de l'événement |
-| `bookings(int $page = 1, int $limit = 30, ?string $search = null, bool $archived = false): array` | `GET /api/bookings` | `{data:list<objet>, pagination:objet}` ; filtre d'archives explicite |
-| `eventBooking(int $id): array` | `GET /api/bookings/event/{id}` | JSON objet, représentation « booking » d'un événement |
-| `bookingsInPeriod(string $startDate, string $endDate): array` | `GET /api/bookings?paginated=0&period[start]=…&period[end]=…` | Liste JSON à la racine, non paginée, dates ISO YYYY-MM-DD |
+| `id` | entier | Identifiant de l'événement pour la lecture détaillée |
+| `entity` | chaîne | Type de booking (observé : `event`) |
+| `title` | chaîne | Intitulé |
+| `operation_period` | objet | Période de l'événement |
+| `mobilization_period` | objet | Période de mobilisation |
+| `has_materials` | booléen | Indique la présence de matériel, sans le détailler |
 
-**Toutes les méthodes sont en lecture seule.** Le POST `/api/session` sert uniquement à l'authentification JWT déjà présente. Aucune route de création, modification, suppression ou archivage n'est ajoutée.
+**Important :** ce mode est **non paginé**, par opposition au `{data, pagination}` des contacts. Le décodeur du SDK n'accepte une réponse JSON en tableau racine **que pour cette méthode** : les méthodes existantes conservent leur validation d'objet. Les requêtes trop larges doivent être évitées en usage opérationnel pour ne pas surcharger l'instance.
 
-## Différences importantes avec les contacts
+L'implémentation renvoie la liste telle quelle, sans masquer ni filtrer d'autres types éventuels. Une application ne souhaitant que des événements peut vérifier `entity === 'event'` dans chaque entrée.
 
-### Recherche courte `/events`
+## 2. Fiche et matériel affecté
 
-Dans le [contrôleur public des événements](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Controllers/EventController.php), `getAll()` sélectionne au plus **10 événements**, filtrés notamment sur la présence de matériel, et renvoie :
+`event(int $id): array`
 
-```json
-{
-  "count": 58,
-  "data": [
-    {"id": 42, "title": "Exemple fictif"}
-  ]
-}
-```
+**Route :** `GET /api/events/{id}`, `id` entier positif.
 
-Cet exemple est **synthétique**, non extrait de l'instance SaaS. Le compteur `count` peut être supérieur au nombre de résultats de `data` ; **il ne faut pas utiliser cette route pour garantir une liste exhaustive**.
+La fiche événement observée est un objet JSON et contient `materials`, une liste des **lignes de matériel réellement affecté à l'événement**.
 
-La méthode candidate `eventSuggestions()` vérifie un entier `count` non négatif, une liste `data` d'objets et conserve les champs JSON supplémentaires. Le champ de recherche est facultatif ; la chaîne Unicode doit contenir entre 2 et 180 caractères si elle n'est pas vide et est encodée avec `http_build_query`. Le code serveur accepte un terme scalaire ou un tableau de termes ; la méthode candidate ne supporte **qu'un terme scalaire** pour éviter de figer un format multi-termes non testé.
+Chaque ligne observée a notamment :
 
-### Liste paginée `/bookings`
+| Champ | Type observé | Contenu |
+|---|---|---|
+| `id` | entier | Identifiant du matériel |
+| `reference` | chaîne | Référence du matériel |
+| `name` | chaîne | Désignation |
+| `quantity` | entier | Quantité réservée pour cet événement |
+| `material` | objet | Détails du matériel lié (champs conservés sans transformation) |
 
-Le [BookingController public](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Controllers/BookingController.php) utilise une liste paginée lorsque `paginated` n'est pas fourni, avec **30 éléments maximum par page** dans le code étudié. `BaseController::paginate()` retourne `data` et `pagination`. La liste est filtrée sur les événements non archivés par défaut ; `archived=true` demande les événements archivés. L'option `archived=false` de la méthode conserve donc le comportement par défaut du serveur, sans ajouter de filtre au chemin HTTP.
-
-Exemple de forme de réponse **entièrement fictif** :
-
-```json
-{
-  "data": [{"id": 42, "entity": "event", "title": "Exemple fictif"}],
-  "pagination": {"perPage": 30, "currentPage": 1, "total": {"items": 58, "pages": 2}}
-}
-```
-
-Les paramètres `page` et `limit` sont des entiers ; `page >= 1`, `1 <= limit <= 30`. Le texte de recherche est encodé comme pour les contacts. Le paramètre d'archives est envoyé uniquement lorsque `archived=true` pour éviter de forcer un comportement serveur non demandé.
-
-Une page hors plage peut renvoyer une erreur HTTP de type **416** dans la version du contrôleur examinée ; c'est à vérifier sur le SaaS. La bibliothèque préserve les valeurs du JSON brut et ne crée aucun modèle de réservation, ni rapprochement métier.
-
-### Lecture des événements sur une période : `/bookings?paginated=0`
-
-Dans la capture réseau fournie, Loxya a utilisé `GET /api/bookings` avec `paginated=0`, `period[start]` et `period[end]`. La réponse HTTP 200 est une **liste JSON à la racine**, contrairement à la réponse `{data, pagination}` du mode paginé.
-
-Chaque événement peut inclure `id`, `title`, `entity`, `operation_period`, `mobilization_period` et `has_materials`. Il s'agit de **résumés**, sans les lignes de matériel réservé. Une réponse vide `[]` est admise.
-
-Exemple fictif :
-
-```json
-[
-  {"id": 42, "entity": "event", "title": "Événement fictif",
-   "has_materials": true, "operation_period": {"start": "2027-01-12", "end": "2027-01-13"}}
-]
-```
-
-La méthode `bookingsInPeriod($startDate, $endDate)` valide deux dates strictes `YYYY-MM-DD` non inversées, puis encode les paramètres de période. Le décodeur HTTP interne accepte ici **uniquement** un tableau racine et exige des éléments objets. Les autres méthodes conservent leur exigence d'un objet racine. Un seul rejeu GET après 401 reste possible.
-
-La liste ne contient pas `materials` : pour retrouver les références et quantités réservées, appeler ensuite `event($id)`. **Ce schéma a été observé sur une instance, sans garantir la compatibilité universelle des versions SaaS.**
-
-### Détails
-
-Les routes `/events/{id}` et `/bookings/event/{id}` représentent des vues distinctes. L'identifiant doit être entier et strictement positif ; le SDK ne mélange pas leurs champs et ne déduit aucun autre type de booking. Le segment `event` est fondé sur `Event::TYPE = 'event'` dans le code public examiné, non sur une énumération arbitraire saisie par l'appelant.
-
-## Matériel affecté : point central du chantier P6.1
-
-Les réponses détaillées des routes `GET /api/events/{id}` et `GET /api/bookings/event/{id}` utilisent respectivement les formats `SERIALIZE_DETAILS` et `SERIALIZE_BOOKING_DEFAULT` du [modèle public `Event`](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Models/Event.php). **Les deux formats ajoutent `materials`** : le matériel attaché à l'événement devrait donc se récupérer sans requête supplémentaire vers le catalogue.
-
-Le [modèle `EventMaterial`](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Models/EventMaterial.php) sérialise les lignes avec notamment `id` (identifiant du matériel), `quantity` (quantité prévue), `name`, `reference` et un objet `material` imbriqué selon les champs présents. Les valeurs sont conservées sans normalisation dans le SDK. Le statut **SaaS reste à confirmer**.
-
-Exemple **entièrement fictif**, servant uniquement à illustrer la structure :
+Exemple **fictif** du contrat, sans valeur copiée depuis le SaaS :
 
 ```json
 {
   "id": 42,
+  "title": "Evenement fictif",
   "materials": [
-    {"id": 103, "name": "Projecteur fictif", "reference": "TEST-103", "quantity": 6,
-     "material": {"id": 103, "name": "Projecteur fictif"}},
-    {"id": 201, "name": "Câble fictif", "quantity": 12,
-     "material": {"id": 201, "name": "Câble fictif"}}
+    {
+      "id": 103,
+      "name": "Projecteur fictif",
+      "reference": "TEST-103",
+      "quantity": 6,
+      "material": {"id": 103, "name": "Projecteur fictif"}
+    }
   ]
 }
 ```
 
-**Trois confusions à éviter :**
+Un tableau `materials: []` signifie que la réponse ne contient aucune ligne affectée ; un champ `materials` absent ou de type inattendu ne doit pas être assimilé à un événement sans matériel.
 
-- `GET /api/bookings/event/{id}/summary` (visible dans l'onglet Réseau du planning) correspond à `SERIALIZE_BOOKING_SUMMARY`. Cette vue peut mentionner `has_materials`, mais **n'ajoute pas `materials`**.
-- `GET /api/materials/while-event/{id}` renvoie **le catalogue des articles et leurs disponibilités contextualisées**, pas seulement les lignes réservées pour cet événement.
-- `GET /api/events/{id}/missing-materials` renvoie **uniquement les lignes de matériel manquantes**, pas l'ensemble du matériel affecté.
+### Routes à ne pas confondre
 
-Une réponse `materials: []` est une liste vide explicite ; un champ absent ou non-listé ne doit pas être assimilé automatiquement à un événement sans matériel. Le consommateur doit vérifier le type de `materials` et des `quantity` réellement renvoyés.
+- `GET /api/bookings/event/{id}/summary` : vue **résumée** du planning ; fournit notamment `has_materials` et `materials_count`, **mais pas les lignes** `materials`.
+- `GET /api/materials/while-event/{id}` : **catalogue de matériel et disponibilités** dans le contexte de l'événement ; ce n'est **pas** la liste des articles réservés.
+- `GET /api/events/{id}/missing-materials` : liste des **matériels manquants uniquement**, pas la liste complète des réservations.
 
-### Recette réelle ciblée
+## 3. Sécurité, validation et limites
 
-Après confirmation de l'autorisation de lecture des routes concernées, ouvrir dans Safari un événement **déjà doté de matériel** et vérifier uniquement **les noms et types des clés** : `materials`, `id`, `quantity`, `name`, `reference`, `material`. Ne pas exporter ni partager les valeurs réelles, noms de clients, identifiants ou jetons. Une capture des seules requêtes réseau peut suffire pour confirmer les routes, avant de contrôler les structures localement.
+- Aucune donnée réelle des fichiers HAR, en-tête `Authorization`, cookie, JWT, valeur de client ni ID réel n'est conservé dans ce dépôt.
+- Les paramètres incorrects sont rejetés **avant réseau** ; les erreurs HTTP restent explicites et ne reproduisent pas les corps de réponse.
+- Une requête GET peut être rejouée **une seule fois après un 401** afin de renouveler la session. Aucune écriture de ressource n'est créée.
+- Les tests CI ne contactent jamais Loxya : ils utilisent des réponses **entièrement fictives** via `FakeTransport`.
+- La structure des deux routes a été observée sur **une instance SaaS**, sans validation systématique des droits restrictifs, des périodes très étendues, des fiches sans matériel ou d'autres versions.
 
-## Tests déjà simulés
+## 4. Critères avant fusion
 
-La CI vérifie sans réseau : les listes paginées et par période, les validations de dates, la forme des listes, les compteurs différents de la longueur de `data`, la préservation des champs non reconnus, les recherches encodées, les pages vides, les limites et IDs incorrects, les erreurs de protocole, les routes de détail et un unique rejeu GET après 401. Le contrôle `composer api-check` inclut les signatures proposées.
+- [x] Tag Git `v0.1.0` publié sur le commit de référence sans les méthodes P6.
+- [x] Deux routes pertinentes observées avec succès en lecture seule dans les traces SaaS autorisées.
+- [x] Types de liste et de matériel relevés sans conserver les valeurs personnelles.
+- [ ] CI verte sur PHP 8.2, 8.4 et 8.5 et contrat de signatures validé pour ce commit.
+- [ ] Revue de la restriction d'utilisation des routes internes, puis accord explicite avant fusion.
+- [ ] Prévoir les éventuelles variantes de droits et de version Loxya dans les futurs tests de recette.
 
-La CI **ne prouve pas** qu'une route est accessible en SaaS et ne contient aucun identifiant réel. Les exceptions HTTP ne contiennent pas de corps de réponse distant. Les accès POST/PUT aux événements et bookings ne sont pas disponibles.
-
-## Conditions avant fusion
-
-- [ ] Le tag `v0.1.0` pointe vers le commit de publication approuvé, **sans les ajouts P6.1**.
-- [ ] Le périmètre d'accès aux nouvelles routes HTTP internes sur le SaaS est explicitement confirmé avec l'éditeur ou dans l'autorisation applicable.
-- [ ] Une recette **de lecture seulement** sur instance autorisée confirme les méthodes et chemins, les droits, la structure de `count`/`data` et de `pagination`, et les erreurs 401/403/404/416.
-- [x] Une capture réseau autorisée confirme les types de la liste `bookings` non paginée d'une période, et les lignes `materials` de la fiche `events/{id}` sur une instance.
-- [ ] Vérifier le tableau `materials` et les types des quantités sur un événement contenant réellement du matériel, sans partager ses valeurs.
-- [ ] Les limites réelles et éventuelles différences avec le code public sont reportées dans la documentation, puis les signatures corrigées si nécessaire.
-- [ ] Aucun nom, identifiant réel, jeton, adresse ou donnée personnelle n'est conservé dans les tests ou issues.
-- [ ] Le changelog, les statuts README, `composer api-check` et la CI PHP 8.2/8.4/8.5 sont vérifiés.
-- [ ] Toute fusion future est explicitement validée et prépare une évolution `0.2.0` selon le versionnement du paquet.
-
-Référence chantier : [issue #7](https://github.com/Pocky0013/loxya-php-client/issues/7). L'étude préalable des autres ressources est dans [PR #8](https://github.com/Pocky0013/loxya-php-client/pull/8).
+Les méthodes non vérifiées de recherche courte `/events`, de bookings paginés et les autres vues de détails restent hors de cette PR. Elles pourront être investiguées dans un chantier distinct (suivi [issue #7](https://github.com/Pocky0013/loxya-php-client/issues/7)). Ce développement prépare une version ultérieure à `v0.1.0`, selon [la politique de versionnement](VERSIONING.md).
