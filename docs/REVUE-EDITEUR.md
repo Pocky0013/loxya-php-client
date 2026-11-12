@@ -29,11 +29,11 @@ La bibliothèque actuelle est testée avec un transport simulé. L'installation 
 
 ## Points à confirmer avec Loxya
 
-1. L'utilisation de ces routes par un client externe sur une instance SaaS est-elle autorisée et sous quelles conditions ?
+1. Quelles conditions et limitations recommandez-vous pour l'utilisation de ces routes sur une instance SaaS ?
 2. Les structures des données et les droits nécessaires sont-ils identiques dans les versions SaaS et publiques ?
 3. Existe-t-il des limites d'appels ou des recommandations concernant le renouvellement des sessions ?
 4. Une méthode d'authentification propre aux intégrations est-elle prévue ?
 5. Quelles garanties de compatibilité ou étapes de migration sont envisagées pour la future API publique ?
-6. La distribution d'un client PHP non officiel, éventuellement en open source, est-elle envisageable ?
+6. Avez-vous des réserves concernant la mise à disposition publique de ce client PHP non officiel sous licence PolyForm Internal Use 1.0.0 ?
 
 Le paquet ne modifie ni les événements ni les documents de facturation. Il ne contient aucun code source repris de Loxya.
