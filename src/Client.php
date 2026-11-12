@@ -42,21 +42,21 @@ final class Client
         return $this->request('GET', '/beneficiaries/'.self::id($id));
     }
 
-    /** Cree une fiche et la relit par son identifiant. */
+    /** Cree une fiche et confirme les champs recus par relecture (sans retry). */
     public function createBeneficiary(array $fields): array
     {
         self::requireFields($fields, ['first_name', 'last_name', 'country'], self::BENEFICIARY_FIELDS);
         $created = $this->request('POST', '/beneficiaries', $fields);
-        return $this->beneficiary(self::responseId($created));
+        return $this->confirmWrite('create', 'beneficiaries', self::responseId($created, 'beneficiaries'), $fields);
     }
 
-    /** Mise a jour partielle, suivie d'une relecture. */
+    /** Mise a jour partielle, puis confirmation stricte des champs relus. */
     public function updateBeneficiary(int $id, array $fields): array
     {
         self::requirePatch($fields, self::BENEFICIARY_FIELDS);
         $path = '/beneficiaries/'.self::id($id);
         $this->request('PUT', $path, $fields);
-        return $this->beneficiary($id);
+        return $this->confirmWrite('update', 'beneficiaries', $id, $fields);
     }
 
     /** @return array{data:list<array<string,mixed>>,pagination:array<array-key,mixed>} */
@@ -75,7 +75,7 @@ final class Client
     {
         self::requireFields($fields, ['legal_name', 'country'], self::COMPANY_FIELDS);
         $created = $this->request('POST', '/companies', $fields);
-        return $this->company(self::responseId($created));
+        return $this->confirmWrite('create', 'companies', self::responseId($created, 'companies'), $fields);
     }
 
     public function updateCompany(int $id, array $fields): array
@@ -83,7 +83,7 @@ final class Client
         self::requirePatch($fields, self::COMPANY_FIELDS);
         $path = '/companies/'.self::id($id);
         $this->request('PUT', $path, $fields);
-        return $this->company($id);
+        return $this->confirmWrite('update', 'companies', $id, $fields);
     }
 
     /**
@@ -113,6 +113,33 @@ final class Client
         $after = $this->updateBeneficiary($beneficiaryId, ['company_id' => $newCompanyId]);
         if (!array_key_exists('company_id', $after) || $after['company_id'] !== $newCompanyId) {
             throw new ProtocolException('Modification envoyee, mais relation non confirmee par relecture.');
+        }
+        return $after;
+    }
+
+
+    /**
+     * Confirme uniquement les champs transmis et l'ID source, sans normalisation.
+     * Si Loxya modifie le format d'une valeur, le resultat reste "incertain",
+     * jamais une preuve d'echec de l'ecriture : aucune tentative n'est relancee.
+     *
+     * @param array<string,mixed> $fields
+     * @return array<string,mixed>
+     */
+    private function confirmWrite(string $operation, string $resource, int $id, array $fields): array
+    {
+        try {
+            $after = $resource === 'companies' ? $this->company($id) : $this->beneficiary($id);
+        } catch (LoxyaException $e) {
+            throw new WriteNotConfirmedException($operation, $resource, $id, 'readback_failed', $e);
+        }
+        if (($after['id'] ?? null) !== $id) {
+            throw new WriteNotConfirmedException($operation, $resource, $id, 'id_mismatch');
+        }
+        foreach ($fields as $field => $expected) {
+            if (!array_key_exists($field, $after) || $after[$field] !== $expected) {
+                throw new WriteNotConfirmedException($operation, $resource, $id, 'fields_mismatch');
+            }
         }
         return $after;
     }
@@ -217,9 +244,16 @@ final class Client
             throw new \InvalidArgumentException('Payload vide ou non associatif.');
         }
         // Seuls les champs de contact connus peuvent etre envoyes.
-        foreach (array_keys($fields) as $field) {
+        foreach ($fields as $field => $value) {
             if (!is_string($field) || !in_array($field, $allowed, true)) {
                 throw new \InvalidArgumentException('Champ de contact non autorise : '.(string)$field);
+            }
+            // Le protocole actuel ne definit pas de structures imbriquees en ecriture.
+            if (!is_scalar($value) && $value !== null) {
+                throw new \InvalidArgumentException('Valeur de contact non scalaire : '.$field.'.');
+            }
+            if ($field === 'company_id' && $value !== null && (!is_int($value) || $value < 1)) {
+                throw new \InvalidArgumentException('company_id doit etre un entier positif ou null.');
             }
         }
     }
@@ -245,11 +279,11 @@ final class Client
         return $id;
     }
 
-    private static function responseId(array $response): int
+    private static function responseId(array $response, string $resource): int
     {
         $id = $response['id'] ?? null;
         if (!is_int($id) || $id < 1) {
-            throw new ProtocolException('Ecriture envoyee, mais aucun ID valide retourne : relecture manuelle requise.');
+            throw new WriteNotConfirmedException('create', $resource, null, 'invalid_response_id');
         }
         return $id;
     }

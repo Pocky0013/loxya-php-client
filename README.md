@@ -118,7 +118,7 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
 
-Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule.
+Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule. Le **[contrat de confirmation des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md)** précise les garanties et limites des POST/PUT, notamment les résultats incertains.
 
 Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
 
@@ -126,7 +126,7 @@ Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées c
 
 Le client s'authentifie auprès de `POST /api/session`, conserve le JWT uniquement en mémoire et l'envoie dans les requêtes suivantes. Les connexions utilisent HTTPS, avec vérification TLS et sans redirection vers un autre serveur. L'hôte est déduit de l'URL configurée.
 
-La méthode `session()` ne renvoie jamais le champ `token` de la réponse de session. Une lecture GET peut être renouvelée une fois après une erreur HTTP 401. **Les écritures POST et PUT ne sont jamais répétées automatiquement**, car une réponse perdue ne signifie pas nécessairement que l'opération a échoué. Une relecture est faite après chaque création ou modification.
+La méthode `session()` ne renvoie jamais le champ `token` de la réponse de session. Une lecture GET peut être renouvelée une fois après une erreur HTTP 401. **Les écritures POST et PUT ne sont jamais répétées automatiquement**, car une réponse perdue ne signifie pas nécessairement que l'opération a échoué. Après chaque création ou modification, une relecture confirme **l'ID de la fiche et chaque champ envoyé**, avec une comparaison stricte (types compris). Si un champ diffère, manque ou ne peut être relu, une `WriteNotConfirmedException` (également une `ProtocolException`) est levée : l'écriture a peut-être bien été appliquée. L'application doit vérifier la fiche avant toute nouvelle tentative. Aucune normalisation ou répétition implicite n'est effectuée.
 
 **Séparation des responsabilités :** le paquet échange avec Loxya et conserve les réponses distantes sans les adapter à un modèle métier tiers. L'application utilisatrice reste responsable des autorisations locales, du stockage, du traitement des données personnelles, de la recherche de doublons, des confirmations avant écriture et de toute synchronisation métier. Le paquet ne possède pas de base de données, ne synchronise pas automatiquement les contacts et ne propose aucune suppression.
 
