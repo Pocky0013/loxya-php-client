@@ -20,12 +20,12 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
 | Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
-| Préparation de `v0.1.0` | **En test** | Changelog et contrat public préparés ; **aucun tag ni release publié**. |
-| Publication GitHub / Packagist | **En projet** | Installation actuelle depuis le dépôt VCS avec `dev-main`. Publication sur décision explicite. |
+| Première version `v0.1.0` | **En test** | Contenu et notes finalisés. Disponibilité de la version à vérifier dans les [Releases](https://github.com/Pocky0013/loxya-php-client/releases). |
+| Packagist | **En projet** | Installation depuis GitHub/VCS ; inscription Packagist non décidée. |
 
 **Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
 
-Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md), le [contrat des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md). Les versions et les évolutions sont suivies dans le [changelog](CHANGELOG.md), la [politique de versionnement](docs/VERSIONING.md) et la [checklist de publication](docs/RELEASE-CHECKLIST.md). Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md), le [contrat des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md). Les versions et les évolutions sont suivies dans le [changelog](CHANGELOG.md), les [notes de v0.1.0](docs/RELEASE-NOTES-v0.1.0.md), la [politique de versionnement](docs/VERSIONING.md) et la [checklist de publication](docs/RELEASE-CHECKLIST.md). Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
 
 ## Licence
 

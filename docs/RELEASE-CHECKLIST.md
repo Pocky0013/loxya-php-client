@@ -1,6 +1,6 @@
-# Checklist de publication — candidat v0.1.0
+# Checklist de publication — v0.1.0
 
-**Statut : préparation uniquement.** Les commandes de publication ci-dessous ne sont pas exécutées lors de la préparation P5.
+**Statut : contenu de la version finalisé ; tag et GitHub Release à vérifier avant de les considérer publiés.** Le tag n'est jamais créé par les tests.
 
 ## 1. Revue avant publication
 
@@ -44,8 +44,8 @@ L'absence de recette SaaS exhaustive ne doit **pas** être présentée comme une
 
 - [ ] Obtenir l'accord du responsable sur le **commit exact** et sur le nom de tag `v0.1.0`.
 - [ ] Vérifier qu'aucun tag `v0.1.0` n'existe.
-- [ ] **Avant le tag**, transformer l'en-tête du bloc candidat de `CHANGELOG.md` en `## [0.1.0] - AAAA-MM-JJ`, conserver un `## [Unreleased]` vide, et mettre le statut du README à jour pour indiquer une version publiée.
-- [ ] Fusionner le dernier commit documentaire ; vérifier la CI **sur ce commit exact**, puis le confirmer à nouveau comme cible du tag.
+- [x] **Avant le tag**, préparer `CHANGELOG.md` avec la section `## [0.1.0] - 2026-11-12` et conserver `## [Unreleased]`.
+- [ ] Fusionner le dernier commit documentaire ; vérifier la CI **sur ce commit exact**, puis le confirmer à nouveau comme cible du tag. Ne pas annoncer la publication avant son existence effective.
 - [ ] Créer et pousser le tag Git annoté uniquement après cet accord :
 
 ```sh
@@ -57,7 +57,9 @@ git push origin v0.1.0
 ```
 
 - [ ] Vérifier que le tag cible le bon commit, que les artefacts de CI sont valides et que les notes de version signalent les fonctionnalités **En test**.
-- [ ] GitHub Release éventuelle, puis Packagist éventuel, **chacune sur décision spécifique**.
+- [ ] Préparer une GitHub Release depuis le tag **existant**, avec [les notes de v0.1.0](RELEASE-NOTES-v0.1.0.md) (la publier seulement après vérification du tag).
+- [ ] Packagist éventuel, **sur décision distincte** ; ne pas présumer que la licence source disponible équivaut à une licence OSI.
+- [ ] Vérifier ensuite le README et ajuster son tableau de statut si nécessaire sans réécrire le tag publié.
 
 Le champ `version` de Composer ne doit pas être modifié : Composer déduit la version du tag.
 
