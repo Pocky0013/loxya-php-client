@@ -4,6 +4,14 @@ Bibliothèque PHP pour consulter et modifier les bénéficiaires et les sociét�
 
 Ce client utilise les routes HTTP internes de Loxya. **Il n'est pas officiel** : ces routes peuvent évoluer sans préavis. Il faut un compte Loxya disposant des droits nécessaires. Aucun accès SQL n'est requis.
 
+## Licence
+
+Le code est distribué sous la [PolyForm Internal Use License 1.0.0](LICENSE.md). Les particuliers et les entreprises peuvent l'utiliser et le modifier pour leurs propres besoins internes, y compris dans un cadre professionnel. La redistribution du connecteur ou de ses versions modifiées, ainsi que leur revente, nécessitent une autorisation distincte du titulaire des droits.
+
+Cette licence est à **code source disponible**, mais n'est pas une licence open source au sens de l'OSI. Le champ `"license": "proprietary"` de `composer.json` reste utilisé pour la compatibilité avec Composer ; les conditions de licence applicables sont celles du fichier `LICENSE.md`.
+
+Copyright © 2026 Electraudio Sàrl.
+
 ## Installation
 
 PHP 8.2+, extensions `curl` et `json`, Composer 2.
@@ -109,4 +117,4 @@ composer lint
 
 Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; cette version de la bibliothèque reste à éprouver dans son application consommatrice.
 
-Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. Le projet reste privé dans l'attente d'un échange avec l'éditeur.
+Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. L'utilisation des routes internes a été confirmée pour le projet Electraudio, sans garantie de stabilité d'une API officielle. Une vérification de compatibilité reste nécessaire lors des évolutions de Loxya.
