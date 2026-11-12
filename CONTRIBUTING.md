@@ -20,6 +20,12 @@ Ce dépôt est un **client PHP indépendant et réutilisable** pour certaines ro
 
 **Electraudio Sàrl est le mainteneur et le premier utilisateur, pas une dépendance d'exécution du paquet.** Le namespace `Electraudio\Loxya` et le nom Composer restent stables pour préserver les installations existantes.
 
+## Maintien de l'état du projet
+
+Le [tableau de statut du README](README.md#état-du-projet) représente les fonctions effectivement utilisables, celles en test et celles encore en projet. Toute PR ajoutant une route, une méthode, une validation SaaS substantielle ou une première version publiée doit le mettre à jour dans le même changement.
+
+Ne qualifier une fonctionnalité de **Validé** que si elle est implémentée, testée en CI et a fait l'objet d'une vérification réelle contrôlée. Si seules des réponses simulées ont été testées, utiliser **En test**. Ne jamais confondre un résultat de CI avec une garantie de compatibilité de l'API non officielle.
+
 ## Avant d'ajouter une méthode
 
 1. Vérifier le comportement de la route concernée sur les éléments disponibles, sans inventer de schéma ni de garantie de stabilité.

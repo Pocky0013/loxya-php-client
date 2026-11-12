@@ -6,6 +6,25 @@ Il s'agit d'un **client PHP (SDK)**, pas d'un serveur REST, d'une API publique o
 
 Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et peuvent changer sans préavis. L'utilisation requiert un compte Loxya autorisé avec les droits nécessaires ; aucun accès SQL n'est requis. Les évolutions sont limitées aux routes dont le comportement a été vérifié. Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour le périmètre architectural.
 
+## État du projet
+
+*Dernière mise à jour : 12 novembre 2026. Aucune version stable ni publication Packagist à ce jour.*
+
+| Fonctionnalité | Statut | Ce qui est disponible |
+|---|---|---|
+| Authentification et session | **Validé** | Connexion `POST /api/session`, JWT en mémoire, `session()` et gestion du 401 en lecture. |
+| Consultation des sociétés | **Validé** | `companies()` et `company()` : liste et fiche par ID. |
+| Consultation des bénéficiaires | **Validé** | `beneficiaries()` et `beneficiary()` : liste, fiche par ID et relation `company_id` dans les réponses. |
+| Pagination et recherche | **En test** | Paramètres utilisables ; les formats et cas limites doivent encore être vérifiés sur diverses instances SaaS. |
+| Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
+| Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
+| Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
+| Première version identifiée et Packagist | **En projet** | Le paquet s'installe actuellement depuis ce dépôt GitHub avec Composer. |
+
+**Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
+
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md) pour les formats et limites précis. Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
+
 ## Licence
 
 Le code est distribué sous la [PolyForm Internal Use License 1.0.0](LICENSE.md). Les particuliers et les entreprises peuvent l'utiliser et le modifier pour leurs propres besoins internes, y compris dans un cadre professionnel. La redistribution du connecteur ou de ses versions modifiées, ainsi que leur revente, nécessitent une autorisation distincte du titulaire des droits.
@@ -74,8 +93,8 @@ $loxya = Factory::fromEnvironment();
 
 // Consulter des sociétés ou des bénéficiaires.
 $companies = $loxya->companies(page: 1, limit: 30);
-$company = $loxya->company(42);
-$beneficiary = $loxya->beneficiary(88);
+$company = $loxya->company(123);
+$beneficiary = $loxya->beneficiary(456);
 
 // Créer une société (opération d'écriture explicite).
 $newCompany = $loxya->createCompany([
