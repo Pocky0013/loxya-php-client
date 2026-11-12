@@ -26,12 +26,14 @@ jobs:
           tools: composer:v2
           coverage: none
       - name: Valider le paquet Composer
-        run: composer validate --no-check-publish
+        run: composer validate --strict --no-check-publish
       - name: Installer la bibliotheque
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Verifier la syntaxe
         run: php tests/lint.php
       - name: Executer les tests unitaires sans acces SaaS
         run: php tests/run.php
+      - name: Verifier le contrat public PHP sans acces SaaS
+        run: php tests/public-api.php
       - name: Verifier le mode aide sans acces SaaS
         run: php bin/loxya-read-check.php --help

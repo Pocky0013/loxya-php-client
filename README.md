@@ -20,11 +20,12 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
 | Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
-| Première version identifiée et Packagist | **En projet** | Le paquet s'installe actuellement depuis ce dépôt GitHub avec Composer. |
+| Préparation de `v0.1.0` | **En test** | Changelog et contrat public préparés ; **aucun tag ni release publié**. |
+| Publication GitHub / Packagist | **En projet** | Installation actuelle depuis le dépôt VCS avec `dev-main`. Publication sur décision explicite. |
 
 **Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
 
-Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md) pour les formats, les limites et les vérifications non destructives. Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md), le [contrat des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md). Les versions et les évolutions sont suivies dans le [changelog](CHANGELOG.md), la [politique de versionnement](docs/VERSIONING.md) et la [checklist de publication](docs/RELEASE-CHECKLIST.md). Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
 
 ## Licence
 
@@ -48,6 +49,14 @@ composer require electraudio/loxya-php-client:dev-main
 Aucune authentification GitHub n'est nécessaire pour télécharger ce dépôt public. Après publication sur Packagist et création d'une version, la déclaration VCS ne sera plus nécessaire.
 
 Composer installe le paquet pendant la préparation de l'application ou son déploiement, pas à chaque ouverture de page.
+
+**Après création du tag `v0.1.0`** (non publié à ce jour), une application disposant du dépôt VCS pourra utiliser une contrainte identifiée :
+
+```bash
+composer require electraudio/loxya-php-client:^0.1.0
+```
+
+Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer le commit installé.
 
 ## Configuration
 
@@ -150,8 +159,9 @@ La commande `--check` effectue la connexion puis des lectures limitées à une p
 composer install
 composer test
 composer lint
+composer api-check
 ```
 
-Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. La CI vérifie PHP 8.2, 8.4 et 8.5. Les scénarios couvrent aussi les réponses JSON invalides, les listes vides, les 401 répétés, les erreurs HTTP et les résultats ambigus d'écriture. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; toute application consommatrice doit vérifier la compatibilité avec sa propre instance et ses droits.
+Les tests utilisent un transport HTTP simulé : ils ne contactent pas Loxya et n'ont pas besoin d'identifiants réels. `composer api-check` vérifie les signatures publiques prévues pour la première version candidate, sans requête réseau. La CI vérifie PHP 8.2, 8.4 et 8.5. Les scénarios couvrent aussi les réponses JSON invalides, les listes vides, les 401 répétés, les erreurs HTTP et les résultats ambigus d'écriture. Les opérations de base ont été validées manuellement sur une instance SaaS le 12 novembre 2026 ; toute application consommatrice doit vérifier la compatibilité avec sa propre instance et ses droits.
 
 Une [note technique](docs/Revue-technique-API-interne-Loxya.pdf) résume les routes et le fonctionnement pour l'équipe Loxya. L'utilisation des routes internes a été autorisée pour l'intégration initiale Electraudio, sans garantie de stabilité et sans présumer des conditions d'utilisation applicables aux autres utilisateurs. Une vérification de compatibilité reste nécessaire lors des évolutions de Loxya.

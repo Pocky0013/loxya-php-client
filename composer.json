@@ -3,7 +3,12 @@
   "description": "Client PHP non officiel pour les routes HTTP internes de Loxya",
   "type": "library",
   "license": "proprietary",
-  "keywords": ["loxya", "php", "api", "contacts"],
+  "keywords": [
+    "loxya",
+    "php",
+    "api",
+    "contacts"
+  ],
   "require": {
     "php": "^8.2",
     "ext-curl": "*",
@@ -16,6 +21,12 @@
   },
   "scripts": {
     "test": "@php tests/run.php",
-    "lint": "@php tests/lint.php"
+    "lint": "@php tests/lint.php",
+    "api-check": "@php tests/public-api.php"
+  },
+  "homepage": "https://github.com/Pocky0013/loxya-php-client",
+  "support": {
+    "issues": "https://github.com/Pocky0013/loxya-php-client/issues",
+    "source": "https://github.com/Pocky0013/loxya-php-client"
   }
 }
