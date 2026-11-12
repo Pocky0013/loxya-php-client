@@ -11,6 +11,7 @@ use Electraudio\Loxya\HttpResponse;
 use Electraudio\Loxya\ProtocolException;
 use Electraudio\Loxya\Transport;
 use Electraudio\Loxya\TransportException;
+use Electraudio\Loxya\WriteNotConfirmedException;
 
 final class FakeTransport implements Transport
 {
@@ -108,6 +109,158 @@ test('Modification societe: PUT puis lecture de controle', function (): void {
         ->queue('PUT', '/companies/42', 200, ['id' => 42, 'note' => 'Nouvelle note'])
         ->queue('GET', '/companies/42', 200, ['id' => 42, 'note' => 'Nouvelle note']);
     ensure(client($f)->updateCompany(42, ['note' => 'Nouvelle note'])['note'] === 'Nouvelle note', 'Note non relue');
+});
+
+test('P3 : creation et modification confirmees par les champs demandes', function (): void {
+    $companyFields = ['legal_name' => 'Entreprise fictive', 'country' => 'CH', 'note' => null];
+    $beneficiaryFields = ['first_name' => 'Alex', 'last_name' => 'Exemple', 'country' => 'CH', 'company_id' => null];
+    $f = login(new FakeTransport())
+        ->queue('POST', '/companies', 201, ['id' => 42])
+        ->queue('GET', '/companies/42', 200, ['id' => 42] + $companyFields + ['phone' => '000'])
+        ->queue('PUT', '/companies/42', 200, ['id' => 42])
+        ->queue('GET', '/companies/42', 200, ['id' => 42, 'note' => 'Verification stricte'])
+        ->queue('POST', '/beneficiaries', 201, ['id' => 88])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88] + $beneficiaryFields)
+        ->queue('PUT', '/beneficiaries/88', 200, ['id' => 88])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'phone' => '021 000 00 00']);
+    $c = client($f);
+    ensure($c->createCompany($companyFields)['note'] === null, 'Creation societe non confirmee');
+    ensure($c->updateCompany(42, ['note' => 'Verification stricte'])['note'] === 'Verification stricte',
+        'Modification societe non confirmee');
+    ensure($c->createBeneficiary($beneficiaryFields)['company_id'] === null, 'Creation beneficiaire non confirmee');
+    ensure($c->updateBeneficiary(88, ['phone' => '021 000 00 00'])['phone'] === '021 000 00 00',
+        'Modification beneficiaire non confirmee');
+    ensure($f->remaining() === 0, 'Sequences de confirmation incompletes');
+});
+
+test('P3 : ID absent ou different lors de la relecture est incertain', function (): void {
+    foreach ([['note' => 'Aucun ID'], ['id' => 99], ['id' => '42']] as $readback) {
+        $f = login(new FakeTransport())
+            ->queue('PUT', '/companies/42', 200, ['id' => 42])
+            ->queue('GET', '/companies/42', 200, $readback);
+        try {
+            client($f)->updateCompany(42, ['note' => 'Note fictive']);
+        } catch (WriteNotConfirmedException $e) {
+            ensure($e->reason === 'id_mismatch', 'Cause ID non confirmee');
+            ensure($e->operation === 'update' && $e->resourceId === 42, 'Contexte operation manquant');
+            ensure(count($f->calls) === 3 && $f->remaining() === 0, 'Ecriture relancee');
+            continue;
+        }
+        throw new RuntimeException('ID de relecture non verifie');
+    }
+});
+
+test('P3 : champs absents, null ou types differents ne sont jamais confirms', function (): void {
+    foreach ([
+        ['id' => 42],
+        ['id' => 42, 'note' => null],
+        ['id' => 42, 'note' => 'Autre valeur'],
+    ] as $readback) {
+        $f = login(new FakeTransport())
+            ->queue('PUT', '/companies/42', 200, ['id' => 42])
+            ->queue('GET', '/companies/42', 200, $readback);
+        try {
+            client($f)->updateCompany(42, ['note' => 'Note privee']);
+        } catch (WriteNotConfirmedException $e) {
+            ensure($e->reason === 'fields_mismatch', 'Divergence de champ non detectee');
+            ensure(!str_contains($e->getMessage(), 'Note privee'), 'Valeur du payload dans exception');
+            ensure(count($f->calls) === 3 && $f->remaining() === 0, 'Ecriture relancee');
+            continue;
+        }
+        throw new RuntimeException('Divergence de champs acceptee');
+    }
+    $f = login(new FakeTransport())
+        ->queue('PUT', '/beneficiaries/88', 200, ['id' => 88])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => '42']);
+    try {
+        client($f)->updateBeneficiary(88, ['company_id' => 42]);
+    } catch (WriteNotConfirmedException $e) {
+        ensure($e->reason === 'fields_mismatch', 'Divergence de type non detectee');
+        return;
+    }
+    throw new RuntimeException('Divergence de type acceptee');
+});
+
+test('P3 : creation avec valeur modifiee ne declenche pas de second POST', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('POST', '/companies', 201, ['id' => 42])
+        ->queue('GET', '/companies/42', 200, ['id' => 42, 'legal_name' => 'Autre societe', 'country' => 'CH']);
+    try {
+        client($f)->createCompany(['legal_name' => 'Societe fictive', 'country' => 'CH']);
+    } catch (WriteNotConfirmedException $e) {
+        ensure($e->operation === 'create' && $e->reason === 'fields_mismatch', 'Ecriture non confirmee');
+        ensure(count(array_filter($f->calls, static fn ($x) => $x['method'] === 'POST' && $x['path'] === '/companies')) === 1,
+            'Creation rejouee');
+        ensure($f->remaining() === 0, 'Requetes inattendues');
+        return;
+    }
+    throw new RuntimeException('Creation differente acceptee');
+});
+
+test('P3 : GET de relecture en echec apres PUT conserve la cause sans retry', function (): void {
+    foreach ([403, 404, 500] as $status) {
+        $f = login(new FakeTransport())
+            ->queue('PUT', '/beneficiaries/88', 200, ['id' => 88])
+            ->queue('GET', '/beneficiaries/88', $status, ['secret' => 'VALEUR_SENSIBLE']);
+        try {
+            client($f)->updateBeneficiary(88, ['note' => 'PRIVE']);
+        } catch (WriteNotConfirmedException $e) {
+            ensure($e->operation === 'update' && $e->resource === 'beneficiaries'
+                && $e->reason === 'readback_failed', 'Echec de lecture mal categorise');
+            ensure($e->getPrevious() instanceof HttpException && $e->getPrevious()->status === $status,
+                'Erreur HTTP initiale non accessible');
+            ensure(!str_contains($e->getMessage(), 'PRIVE')
+                && !str_contains($e->getMessage(), 'VALEUR_SENSIBLE'), 'Donnees divulguees');
+            ensure(count($f->calls) === 3 && $f->remaining() === 0, 'PUT relance apres GET en echec');
+            continue;
+        }
+        throw new RuntimeException('Lecture non confirmee acceptee');
+    }
+});
+
+test('P3 : une creation sans ID valide signale un resultat incertain', function (): void {
+    foreach ([['id' => '42'], ['id' => 0], ['status' => 'success']] as $body) {
+        $f = login(new FakeTransport())->queue('POST', '/beneficiaries', 201, $body);
+        try {
+            client($f)->createBeneficiary(['first_name' => 'Alex', 'last_name' => 'Exemple', 'country' => 'CH']);
+        } catch (WriteNotConfirmedException $e) {
+            ensure($e->reason === 'invalid_response_id' && $e->resourceId === null,
+                'Contexte de creation incertaine absent');
+            ensure($e instanceof ProtocolException, 'Compatibilite ProtocolException perdue');
+            ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Creation rejouee');
+            continue;
+        }
+        throw new RuntimeException('Creation sans ID consideree comme confirmee');
+    }
+});
+
+test('P3 : les objets et company_id incorrects sont refuses avant la connexion', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        fn () => $c->createCompany(['legal_name' => 'Exemple', 'country' => 'CH', 'note' => ['nested']]),
+        fn () => $c->updateBeneficiary(88, ['phone' => ['numbers' => ['021']]]),
+        fn () => $c->updateBeneficiary(88, ['company_id' => '42']),
+        fn () => $c->updateBeneficiary(88, ['company_id' => -1]),
+        fn () => $c->updateBeneficiary(88, ['company_id' => 0]),
+    ] as $invalid) {
+        try {
+            $invalid();
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Payload non conforme accepte avant la connexion');
+    }
+    ensure($f->calls === [], 'Reseau utilise malgre payload invalide');
+});
+
+test('P3 : un champ null confirme doit etre present dans la relecture', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('PUT', '/beneficiaries/88', 200, ['id' => 88])
+        ->queue('GET', '/beneficiaries/88', 200, ['id' => 88, 'company_id' => null]);
+    ensure(client($f)->updateBeneficiary(88, ['company_id' => null])['company_id'] === null,
+        'Dissociation explicite non confirmee');
+    ensure($f->remaining() === 0, 'Sequence de relecture non terminee');
 });
 
 test('Liaison beneficiaire vers entreprise par company_id', function (): void {

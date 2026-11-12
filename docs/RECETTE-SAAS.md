@@ -79,7 +79,7 @@ Lors d'une future recette autorisée :
 6. En cas de panne ou de réponse perdue après POST/PUT, considérer le résultat comme **incertain**, rechercher la fiche et demander une vérification manuelle ; **ne jamais rejouer automatiquement l'écriture**.
 7. Noter les résultats de manière anonymisée et laisser les fiches intactes en l'absence d'une autorisation séparée de nettoyage.
 
-**Important :** les méthodes d'écriture actuelles ne comparent pas encore systématiquement tous les champs relus aux valeurs demandées ; leur durcissement appartient au chantier P3. Le protocole ne doit pas être interprété comme une validation de ces fonctionnalités.
+**Important :** les méthodes d'écriture du chantier P3 vérifient désormais strictement les champs relus (ID et valeurs transmises) et signalent les écarts avec `WriteNotConfirmedException`. Cette comparaison doit encore être confrontée aux normalisations réelles du SaaS ; **ce protocole n'atteste aucune écriture réelle**, et un écart ne signifie pas nécessairement que la modification a échoué.
 
 ## 6. Critères d'acceptation et suite
 
