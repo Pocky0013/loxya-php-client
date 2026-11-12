@@ -7,7 +7,7 @@
 - [ ] PR P5 fusionnée et commit de `main` identifié.
 - [ ] README, `CHANGELOG.md`, contrats de lecture/écriture, statut des fonctionnalités et politique de versionnement à jour.
 - [ ] Signature publique des méthodes, noms des paramètres et exceptions examinés pour les intégrateurs.
-- [ ] Composer : `electraudio/loxya-php-client`, namespace `Electraudio\\Loxya\\`, PHP `^8.2`, extensions `curl` / `json`.
+- [ ] Composer : `electraudio/loxya-php-client`, namespace `Electraudio\Loxya\`, PHP `^8.2`, extensions `curl` / `json`.
 - [ ] Licence PolyForm Internal Use 1.0.0, `composer.json` à `"license": "proprietary"`, aucune modification implicite des conditions de redistribution.
 - [ ] Aucun secret, JWT, fichier `.env`, valeur de contact réelle, résultat privé ou trace sensible dans les fichiers versionnés.
 - [ ] Aucune route Loxya non vérifiée présentée comme prise en charge ou officiellement stable.
