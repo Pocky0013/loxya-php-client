@@ -33,3 +33,5 @@ jobs:
         run: php tests/lint.php
       - name: Executer les tests unitaires sans acces SaaS
         run: php tests/run.php
+      - name: Verifier le mode aide sans acces SaaS
+        run: php bin/loxya-read-check.php --help
