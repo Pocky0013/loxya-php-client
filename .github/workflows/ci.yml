@@ -1,0 +1,33 @@
+name: Verification du client PHP
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php-tests:
+    name: PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.4']
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: curl, json
+          tools: composer:v2
+          coverage: none
+      - name: Valider le paquet Composer
+        run: composer validate --no-check-publish
+      - name: Verifier la syntaxe
+        run: php tests/lint.php
+      - name: Executer les tests unitaires sans acces SaaS
+        run: php tests/run.php

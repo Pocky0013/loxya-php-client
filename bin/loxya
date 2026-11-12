@@ -1,0 +1,243 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+/**
+ * Interface CLI de diagnostic (independante du portail, sans serveur web).
+ * Les operations POC sont reservees a des noms et marqueurs fictifs explicites.
+ * Aucune suppression; aucune nouvelle tentative automatique sur les ecritures.
+ */
+
+use Electraudio\Loxya\Client;
+use Electraudio\Loxya\Factory;
+
+if (is_file(__DIR__.'/../vendor/autoload.php')) {
+    require __DIR__.'/../vendor/autoload.php';
+} else {
+    require __DIR__.'/../bootstrap.php';
+}
+
+const POC_BENEFICIARY_NAME = 'Test ElectraudioPoC';
+const POC_COMPANY_NAME = 'ElectraudioPoC - Societe fictive';
+const POC_BENEFICIARY_MARK = '[ELECTRAUDIO LOXYA POC]';
+const POC_COMPANY_MARK = '[ELECTRAUDIO LOXYA POC COMPANY]';
+
+function usage(): void
+{
+    echo <<<'TXT'
+Client PHP Loxya non officiel - operations limitees aux contacts.
+
+  php bin/loxya check
+  php bin/loxya beneficiaries [--search=texte] [--page=1]
+  php bin/loxya companies [--search=texte] [--page=1]
+  php bin/loxya beneficiary <id>
+  php bin/loxya company <id>
+
+  php bin/loxya poc-create-beneficiary [--confirm]
+  php bin/loxya poc-update-beneficiary <id> [--confirm]
+  php bin/loxya poc-create-company [--confirm]
+  php bin/loxya poc-update-company <id> [--confirm]
+  php bin/loxya poc-link <beneficiary_id> <company_id> [--confirm]
+  php bin/loxya poc-unlink <beneficiary_id> <company_id> [--confirm]
+
+Configuration : config.local.php (copie de config.example.php) ou
+  LOXYA_CONFIG=/chemin/absolu/config.local.php
+
+Les commandes POC ecrivent dans la vraie instance seulement avec --confirm.
+ATTENTION : jamais de seconde tentative automatique si un POST/PUT a echoue.
+
+TXT;
+}
+
+function dumpJson(array $data): void
+{
+    echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
+}
+
+function requiredId(?string $value): int
+{
+    if ($value === null || !ctype_digit($value) || (int)$value < 1) {
+        throw new InvalidArgumentException('Identifiant entier positif requis.');
+    }
+    return (int)$value;
+}
+
+function preview(string $action, array $data, bool $confirmed): void
+{
+    echo $confirmed ? "EXECUTION REELLE : {$action}\n" : "APERCU SANS ECRITURE : {$action}\n";
+    dumpJson($data);
+    if (!$confirmed) {
+        echo "Relancer avec --confirm pour effectuer une seule operation.\n";
+    }
+}
+
+function assertBeneficiaryPoc(array $item): void
+{
+    $fullName = trim((string)($item['first_name'] ?? '').' '.(string)($item['last_name'] ?? ''));
+    if ($fullName !== POC_BENEFICIARY_NAME || !str_starts_with((string)($item['note'] ?? ''), POC_BENEFICIARY_MARK)) {
+        throw new LogicException('Beneficiaire refuse : fiche de test attendue introuvable.');
+    }
+}
+
+function assertCompanyPoc(array $item): void
+{
+    if (($item['legal_name'] ?? null) !== POC_COMPANY_NAME
+        || !str_starts_with((string)($item['note'] ?? ''), POC_COMPANY_MARK)) {
+        throw new LogicException('Societe refusee : fiche de test attendue introuvable.');
+    }
+}
+
+function assertNoExisting(Client $client, string $kind, string $exactName): void
+{
+    // Un resultat etrange ne doit jamais autoriser une creation sur des donnees incertaines.
+    $listing = $kind === 'beneficiary'
+        ? $client->beneficiaries(1, 100, 'ElectraudioPoC')
+        : $client->companies(1, 100, 'ElectraudioPoC');
+    foreach ($listing['data'] as $entry) {
+        $name = $kind === 'beneficiary'
+            ? trim((string)($entry['first_name'] ?? '').' '.(string)($entry['last_name'] ?? ''))
+            : (string)($entry['legal_name'] ?? '');
+        if ($name === $exactName) {
+            throw new LogicException('Une fiche fictive existe deja : utiliser son ID plutot que recreer.');
+        }
+    }
+}
+
+function main(array $argv): void
+{
+    $command = $argv[1] ?? 'help';
+    if (in_array($command, ['help', '--help', '-h'], true)) {
+        usage();
+        return;
+    }
+    if (count(array_filter($argv, static fn (string $value): bool => $value === '--confirm')) > 1) {
+        throw new InvalidArgumentException('Option --confirm repetee.');
+    }
+    $confirmed = in_array('--confirm', $argv, true);
+    $configPath = getenv('LOXYA_CONFIG') ?: __DIR__.'/../config.local.php';
+    $client = Factory::fromFile($configPath);
+
+    switch ($command) {
+        case 'check':
+            $session = $client->session();
+            echo "Session Loxya valide. ID utilisateur : ", (string)($session['id'] ?? '?'), "\n";
+            return;
+        case 'beneficiaries':
+        case 'companies':
+            $search = null;
+            $page = 1;
+            foreach (array_slice($argv, 2) as $opt) {
+                if (str_starts_with($opt, '--search=')) {
+                    $search = substr($opt, 9);
+                } elseif (str_starts_with($opt, '--page=')) {
+                    $page = requiredId(substr($opt, 7));
+                } else {
+                    throw new InvalidArgumentException('Option inconnue : '.$opt);
+                }
+            }
+            $result = $command === 'companies'
+                ? $client->companies($page, 30, $search)
+                : $client->beneficiaries($page, 30, $search);
+            echo "Page ", (string)($result['pagination']['currentPage'] ?? $page), "\n";
+            foreach ($result['data'] as $row) {
+                $title = $command === 'companies'
+                    ? ($row['legal_name'] ?? '?')
+                    : ($row['full_name'] ?? trim((string)($row['first_name'] ?? '').' '.(string)($row['last_name'] ?? '')));
+                echo (string)($row['id'] ?? '?'), ' : ', (string)$title, "\n";
+            }
+            return;
+        case 'beneficiary':
+            dumpJson($client->beneficiary(requiredId($argv[2] ?? null)));
+            return;
+        case 'company':
+            dumpJson($client->company(requiredId($argv[2] ?? null)));
+            return;
+        case 'poc-create-beneficiary':
+            $payload = [
+                'first_name' => 'Test', 'last_name' => 'ElectraudioPoC',
+                'country' => 'CH', 'email' => null,
+                'note' => POC_BENEFICIARY_MARK.' Fiche fictive, sans donnees client reelles.',
+            ];
+            preview('creation beneficiaire fictif', $payload, $confirmed);
+            if (!$confirmed) return;
+            assertNoExisting($client, 'beneficiary', POC_BENEFICIARY_NAME);
+            $created = $client->createBeneficiary($payload);
+            echo 'Creation confirmee par GET ; ID : ', $created['id'], "\n";
+            return;
+        case 'poc-create-company':
+            $payload = [
+                'legal_name' => POC_COMPANY_NAME,
+                'is_public_entity' => false, 'country' => 'CH',
+                'note' => POC_COMPANY_MARK.' Fiche fictive, sans donnees client reelles.',
+            ];
+            preview('creation societe fictive', $payload, $confirmed);
+            if (!$confirmed) return;
+            assertNoExisting($client, 'company', POC_COMPANY_NAME);
+            $created = $client->createCompany($payload);
+            echo 'Creation confirmee par GET ; ID : ', $created['id'], "\n";
+            return;
+        case 'poc-update-beneficiary':
+            $id = requiredId($argv[2] ?? null);
+            $item = $client->beneficiary($id);
+            assertBeneficiaryPoc($item);
+            $note = POC_BENEFICIARY_MARK.' Mise a jour POC '.gmdate('c');
+            preview('modification beneficiaire fictif #'.$id, ['before' => $item['note'], 'after' => $note], $confirmed);
+            if (!$confirmed) return;
+            $updated = $client->updateBeneficiary($id, ['note' => $note]);
+            if (($updated['note'] ?? null) !== $note) throw new LogicException('PUT envoye, mais note non confirmee par GET.');
+            echo "Modification du beneficiaire confirmee par GET.\n";
+            return;
+        case 'poc-update-company':
+            $id = requiredId($argv[2] ?? null);
+            $item = $client->company($id);
+            assertCompanyPoc($item);
+            $note = POC_COMPANY_MARK.' Mise a jour POC '.gmdate('c');
+            preview('modification societe fictive #'.$id, ['before' => $item['note'], 'after' => $note], $confirmed);
+            if (!$confirmed) return;
+            $updated = $client->updateCompany($id, ['note' => $note]);
+            if (($updated['note'] ?? null) !== $note) throw new LogicException('PUT envoye, mais note non confirmee par GET.');
+            echo "Modification de la societe confirmee par GET.\n";
+            return;
+        case 'poc-link':
+        case 'poc-unlink':
+            $beneficiaryId = requiredId($argv[2] ?? null);
+            $companyId = requiredId($argv[3] ?? null);
+            $beneficiary = $client->beneficiary($beneficiaryId);
+            $company = $client->company($companyId);
+            assertBeneficiaryPoc($beneficiary);
+            assertCompanyPoc($company);
+            $before = $beneficiary['company_id'] ?? null;
+            $after = $command === 'poc-link' ? $companyId : null;
+            $expectedBefore = $command === 'poc-link' ? null : $companyId;
+            if ($before !== $expectedBefore) {
+                throw new LogicException('Etat initial inattendu : relation non modifiee.');
+            }
+            preview('modification relation sur fiches fictives', [
+                'beneficiary_id' => $beneficiaryId,
+                'company_id_before' => $before, 'company_id_after' => $after,
+            ], $confirmed);
+            if (!$confirmed) return;
+            $updated = $client->setBeneficiaryCompany($beneficiaryId, $after, $expectedBefore);
+            if (($updated['company_id'] ?? null) !== $after) {
+                throw new LogicException('PUT envoye, relation non confirmee par GET.');
+            }
+            echo "Relation confirmee par relecture.\n";
+            return;
+        default:
+            throw new InvalidArgumentException('Commande inconnue. Utiliser help.');
+    }
+}
+
+try {
+    main($argv);
+} catch (Throwable $e) {
+    fwrite(STDERR, 'ERREUR : '.$e->getMessage()."\n");
+    if (in_array($argv[1] ?? '', [
+        'poc-create-beneficiary', 'poc-create-company',
+        'poc-update-beneficiary', 'poc-update-company',
+        'poc-link', 'poc-unlink',
+    ], true) && in_array('--confirm', $argv, true)) {
+        fwrite(STDERR, "Si un POST/PUT a ete emis, son resultat est peut-etre incertain. Verifier Loxya avant toute nouvelle tentative.\n");
+    }
+    exit(1);
+}
