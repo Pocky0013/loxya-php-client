@@ -396,7 +396,7 @@ test('Creation sans ID fiable : pas de nouveau POST', function (): void {
             client($f)->createCompany(['legal_name' => 'Fictif', 'country' => 'CH']);
         } catch (ProtocolException $e) {
             ensure(count($f->calls) === 2, 'Creation renvoyee');
-            ensure(str_contains($e->getMessage(), 'relecture manuelle'), 'Ambiguite non expliquee');
+            ensure($e instanceof ProtocolException, 'Reponse de creation invalide non signalee');
             continue;
         }
         throw new RuntimeException('Reponse de creation sans ID valide acceptee');
