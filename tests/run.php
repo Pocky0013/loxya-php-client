@@ -191,4 +191,71 @@ if (extension_loaded('curl')) {
     });
 }
 
+if (extension_loaded('curl')) {
+    test('Variables d environnement chargees par Dotenv dans $_ENV', function (): void {
+        $keys = ['LOXYA_BASE_URL', 'LOXYA_USERNAME', 'LOXYA_PASSWORD'];
+        $previous = [];
+        foreach ($keys as $key) {
+            $previous[$key] = [array_key_exists($key, $_ENV), $_ENV[$key] ?? null];
+        }
+        try {
+            $_ENV['LOXYA_BASE_URL'] = 'https://demo.loxya.app';
+            $_ENV['LOXYA_USERNAME'] = 'integration';
+            $_ENV['LOXYA_PASSWORD'] = 'mot-de-passe-de-test';
+            ensure(Factory::fromEnvironment() instanceof Client, 'Variables non prises en compte');
+            $_ENV['LOXYA_PASSWORD'] = '';
+            try {
+                Factory::fromEnvironment();
+            } catch (InvalidArgumentException) {
+                return;
+            }
+            throw new RuntimeException('Un mot de passe vide a ete accepte');
+        } finally {
+            foreach ($previous as $key => [$existed, $value]) {
+                if ($existed) $_ENV[$key] = $value;
+                else unset($_ENV[$key]);
+            }
+        }
+    });
+
+    test('Variables fournies par le serveur via getenv', function (): void {
+        $values = [
+            'LOXYA_BASE_URL' => 'https://demo.loxya.app',
+            'LOXYA_USERNAME' => 'integration',
+            'LOXYA_PASSWORD' => 'mot-de-passe-de-test',
+        ];
+        $before = [];
+        foreach ($values as $key => $value) {
+            $before[$key] = [getenv($key), array_key_exists($key, $_ENV), $_ENV[$key] ?? null,
+                array_key_exists($key, $_SERVER), $_SERVER[$key] ?? null];
+            unset($_ENV[$key], $_SERVER[$key]);
+            putenv($key.'='.$value);
+        }
+        try {
+            ensure(Factory::fromEnvironment() instanceof Client, 'getenv non pris en compte');
+        } finally {
+            foreach ($before as $key => [$old, $inEnv, $envValue, $inServer, $serverValue]) {
+                if ($old === false) putenv($key);
+                else putenv($key.'='.$old);
+                if ($inEnv) $_ENV[$key] = $envValue;
+                if ($inServer) $_SERVER[$key] = $serverValue;
+            }
+        }
+    });
+}
+
+test('Temporisations non numeriques refusees', function (): void {
+    try {
+        Factory::fromArray([
+            'base_url' => 'https://demo.loxya.app',
+            'username' => 'integration',
+            'password' => 'mot-de-passe-de-test',
+            'timeout' => '30 secondes',
+        ]);
+    } catch (InvalidArgumentException) {
+        return;
+    }
+    throw new RuntimeException('Temporisation non numerique acceptee');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

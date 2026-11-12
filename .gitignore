@@ -1,13 +1,13 @@
-# Secrets et donnees sensibles : jamais en Git
-/config.local.php
-/config/loxya.php
-/config.*.local.php
+/vendor/
 /.env
 /.env.*
 !/.env.example
+/config.env
+/config.*.env
+/config.local.php
+/config.*.local.php
 *.log
 *.bak
 *.old
 .DS_Store
-/vendor/
 /.phpunit.cache/

@@ -17,6 +17,10 @@ La connexion envoie `identifier` et `password` au format JSON. Le JWT renvoyé e
 
 Le client vérifie TLS, refuse les redirections et les hôtes non conformes à la configuration. Les requêtes de lecture peuvent être rejouées une fois après une nouvelle authentification en cas de `401`. Les écritures ne sont jamais rejouées automatiquement et sont suivies d'une relecture de la fiche.
 
+## Configuration de l'application
+
+Les variables `LOXYA_BASE_URL`, `LOXYA_USERNAME` et `LOXYA_PASSWORD` proviennent de l'environnement de l'application (fichier `.env` chargé par celle-ci ou gestionnaire de secrets). Le paquet n'embarque ni identifiants ni chargeur de fichier `.env`. La bibliothèque propose `Factory::fromEnvironment()` et `Factory::fromArray()`.
+
 ## Vérifications effectuées
 
 Des essais sur une instance SaaS Loxya ont confirmé l'authentification, la lecture, la création et la modification de fiches fictives de bénéficiaires et de sociétés, ainsi que leur association et dissociation. Ces tests ne constituent pas une garantie de compatibilité avec toutes les versions de Loxya.
