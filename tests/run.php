@@ -789,7 +789,7 @@ test('Diagnostic P4 : ID invalide ne declenche pas de lecture de detail', functi
 
 
 test('P6.1 : bookings pagines conservent les donnees brutes et les metadonnees', function (): void {
-    $body = ['data' => [['id' => 42, 'type' => 'event', 'title' => 'Fete fictive']],
+    $body = ['data' => [['id' => 42, 'entity' => 'event', 'title' => 'Fete fictive']],
         'pagination' => ['perPage' => 30, 'currentPage' => 1, 'total' => ['items' => 53, 'pages' => 2]]];
     $f = login(new FakeTransport())->queue('GET', '/bookings?page=1&limit=30', 200, $body);
     ensure(client($f)->bookings() === $body, 'Donnees ou pagination bookings transformees');
@@ -797,7 +797,7 @@ test('P6.1 : bookings pagines conservent les donnees brutes et les metadonnees',
 });
 
 test('P6.1 : recherche bookings et archives, sans filtre implicite nouveau', function (): void {
-    $body = ['data' => [['id' => 42, 'type' => 'event']], 'pagination' => ['currentPage' => 2]];
+    $body = ['data' => [['id' => 42, 'entity' => 'event']], 'pagination' => ['currentPage' => 2]];
     $f = login(new FakeTransport())
         ->queue('GET', '/bookings?page=2&limit=15&search=Caf%C3%A9%20test&archived=1', 200, $body)
         ->queue('GET', '/bookings?page=1&limit=30', 200, ['data' => [], 'pagination' => []]);
@@ -807,13 +807,26 @@ test('P6.1 : recherche bookings et archives, sans filtre implicite nouveau', fun
     ensure($f->remaining() === 0, 'Requetes non consommees');
 });
 
-test('P6.1 : details evenement et booking evenement utilisent deux routes', function (): void {
+test('P6.1 : details evenement et booking conservent le materiel affecte et ses quantites', function (): void {
+    $materials = [
+        ['id' => 103, 'name' => 'Projecteur fictif', 'reference' => 'TEST-103', 'quantity' => 6,
+            'material' => ['id' => 103, 'name' => 'Projecteur fictif', 'extra' => true]],
+        ['id' => 201, 'name' => 'Cable fictif', 'quantity' => 12,
+            'material' => ['id' => 201, 'name' => 'Cable fictif']],
+    ];
+    $event = ['id' => 42, 'title' => 'Evenement fictif', 'materials' => $materials];
+    $booking = ['id' => 42, 'entity' => 'event', 'materials' => $materials];
     $f = login(new FakeTransport())
-        ->queue('GET', '/events/42', 200, ['id' => 42, 'title' => 'Exemple'])
-        ->queue('GET', '/bookings/event/42', 200, ['id' => 42, 'type' => 'event', 'materials' => []]);
+        ->queue('GET', '/events/42', 200, $event)
+        ->queue('GET', '/bookings/event/42', 200, $booking)
+        ->queue('GET', '/events/43', 200, ['id' => 43, 'materials' => []]);
     $c = client($f);
-    ensure($c->event(42)['title'] === 'Exemple', 'Mauvaise route event');
-    ensure($c->eventBooking(42)['materials'] === [], 'Mauvaise route booking/event');
+    $detail = $c->event(42);
+    ensure($detail === $event, 'Contenu du materiel affecte transforme');
+    ensure($detail['materials'][0]['quantity'] === 6, 'Quantite de materiel modifiee');
+    ensure($detail['materials'][0]['material']['extra'] === true, 'Proprietes materiel supprimees');
+    ensure($c->eventBooking(42) === $booking, 'Vue booking ou materiel affecte transforme');
+    ensure($c->event(43)['materials'] === [], 'Liste de materiel vide modifiee');
     ensure($f->remaining() === 0, 'Requetes de details non consommees');
 });
 

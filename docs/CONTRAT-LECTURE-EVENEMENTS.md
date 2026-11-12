@@ -44,7 +44,7 @@ Exemple de forme de réponse **entièrement fictif** :
 
 ```json
 {
-  "data": [{"id": 42, "type": "event", "title": "Exemple fictif"}],
+  "data": [{"id": 42, "entity": "event", "title": "Exemple fictif"}],
   "pagination": {"perPage": 30, "currentPage": 1, "total": {"items": 58, "pages": 2}}
 }
 ```
@@ -57,6 +57,38 @@ Une page hors plage peut renvoyer une erreur HTTP de type **416** dans la versio
 
 Les routes `/events/{id}` et `/bookings/event/{id}` représentent des vues distinctes. L'identifiant doit être entier et strictement positif ; le SDK ne mélange pas leurs champs et ne déduit aucun autre type de booking. Le segment `event` est fondé sur `Event::TYPE = 'event'` dans le code public examiné, non sur une énumération arbitraire saisie par l'appelant.
 
+## Matériel affecté : point central du chantier P6.1
+
+Les réponses détaillées des routes `GET /api/events/{id}` et `GET /api/bookings/event/{id}` utilisent respectivement les formats `SERIALIZE_DETAILS` et `SERIALIZE_BOOKING_DEFAULT` du [modèle public `Event`](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Models/Event.php). **Les deux formats ajoutent `materials`** : le matériel attaché à l'événement devrait donc se récupérer sans requête supplémentaire vers le catalogue.
+
+Le [modèle `EventMaterial`](https://github.com/Loxya/Loxya/blob/2ce970474d8bd76e0f9da739c10fb33eb445e587/server/src/App/Models/EventMaterial.php) sérialise les lignes avec notamment `id` (identifiant du matériel), `quantity` (quantité prévue), `name`, `reference` et un objet `material` imbriqué selon les champs présents. Les valeurs sont conservées sans normalisation dans le SDK. Le statut **SaaS reste à confirmer**.
+
+Exemple **entièrement fictif**, servant uniquement à illustrer la structure :
+
+```json
+{
+  "id": 42,
+  "materials": [
+    {"id": 103, "name": "Projecteur fictif", "reference": "TEST-103", "quantity": 6,
+     "material": {"id": 103, "name": "Projecteur fictif"}},
+    {"id": 201, "name": "Câble fictif", "quantity": 12,
+     "material": {"id": 201, "name": "Câble fictif"}}
+  ]
+}
+```
+
+**Trois confusions à éviter :**
+
+- `GET /api/bookings/event/{id}/summary` (visible dans l'onglet Réseau du planning) correspond à `SERIALIZE_BOOKING_SUMMARY`. Cette vue peut mentionner `has_materials`, mais **n'ajoute pas `materials`**.
+- `GET /api/materials/while-event/{id}` renvoie **le catalogue des articles et leurs disponibilités contextualisées**, pas seulement les lignes réservées pour cet événement.
+- `GET /api/events/{id}/missing-materials` renvoie **uniquement les lignes de matériel manquantes**, pas l'ensemble du matériel affecté.
+
+Une réponse `materials: []` est une liste vide explicite ; un champ absent ou non-listé ne doit pas être assimilé automatiquement à un événement sans matériel. Le consommateur doit vérifier le type de `materials` et des `quantity` réellement renvoyés.
+
+### Recette réelle ciblée
+
+Après confirmation de l'autorisation de lecture des routes concernées, ouvrir dans Safari un événement **déjà doté de matériel** et vérifier uniquement **les noms et types des clés** : `materials`, `id`, `quantity`, `name`, `reference`, `material`. Ne pas exporter ni partager les valeurs réelles, noms de clients, identifiants ou jetons. Une capture des seules requêtes réseau peut suffire pour confirmer les routes, avant de contrôler les structures localement.
+
 ## Tests déjà simulés
 
 La CI vérifie sans réseau : la forme des listes, les compteurs différents de la longueur de `data`, la préservation des champs non reconnus, les recherches encodées, les pages vides, les limites et IDs incorrects, les erreurs de protocole, les routes de détail et un unique rejeu GET après 401. Le contrôle `composer api-check` inclut les signatures proposées.
@@ -68,6 +100,7 @@ La CI **ne prouve pas** qu'une route est accessible en SaaS et ne contient aucun
 - [ ] Le tag `v0.1.0` pointe vers le commit de publication approuvé, **sans les ajouts P6.1**.
 - [ ] Le périmètre d'accès aux nouvelles routes HTTP internes sur le SaaS est explicitement confirmé avec l'éditeur ou dans l'autorisation applicable.
 - [ ] Une recette **de lecture seulement** sur instance autorisée confirme les méthodes et chemins, les droits, la structure de `count`/`data` et de `pagination`, et les erreurs 401/403/404/416.
+- [ ] Vérifier le tableau `materials` et les types des quantités sur un événement contenant réellement du matériel, sans partager ses valeurs.
 - [ ] Les limites réelles et éventuelles différences avec le code public sont reportées dans la documentation, puis les signatures corrigées si nécessaire.
 - [ ] Aucun nom, identifiant réel, jeton, adresse ou donnée personnelle n'est conservé dans les tests ou issues.
 - [ ] Le changelog, les statuts README, `composer api-check` et la CI PHP 8.2/8.4/8.5 sont vérifiés.

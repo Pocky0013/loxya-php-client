@@ -146,6 +146,27 @@ Les méthodes ci-dessous sont **proposées dans une branche de développement** 
 
 Les deux routes de liste n'ont **pas** la même forme de réponse. Voir le [contrat candidat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md). Ne les utiliser sur une instance réelle qu'après vérification des droits et des routes avec l'éditeur.
 
+**Parcours prioritaire P6 : liste des événements → détail → matériel réservé.** Le code public de Loxya indique que `event($id)` et `eventBooking($id)` renvoient une fiche contenant les lignes `materials`, chacune avec sa `quantity` et des informations de référence. Le résumé `/bookings/event/{id}/summary` visible dans le planning **ne contient pas cette liste**.
+
+```php
+// Exemple illustratif, uniquement après validation des routes SaaS.
+$page = $loxya->bookings(page: 1, limit: 30);
+$id = $page['data'][0]['id'] ?? null;
+if (is_int($id) && $id > 0) {
+    $event = $loxya->event($id);
+    if (!isset($event['materials']) || !is_array($event['materials'])) {
+        throw new \UnexpectedValueException('Liste du materiel indisponible.');
+    }
+    foreach ($event['materials'] as $line) {
+        $materialId = $line['id'] ?? null;
+        $quantity = $line['quantity'] ?? null;
+        $reference = $line['reference'] ?? null;
+    }
+}
+```
+
+Attention : `/materials/while-event/{id}` fournit un catalogue avec disponibilités, **pas uniquement le matériel réservé**. Le contrat candidat précise la différence entre ces ressources.
+
 ## Fonctionnement et limites
 
 Le client s'authentifie auprès de `POST /api/session`, conserve le JWT uniquement en mémoire et l'envoie dans les requêtes suivantes. Les connexions utilisent HTTPS, avec vérification TLS et sans redirection vers un autre serveur. L'hôte est déduit de l'URL configurée.
