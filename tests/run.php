@@ -787,4 +787,119 @@ test('Diagnostic P4 : ID invalide ne declenche pas de lecture de detail', functi
     ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Lecture de detail sur ID incorrect');
 });
 
+
+test('P6.1 : parcours liste de periode vers fiche evenement et materiel affecte', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27';
+    $list = [
+        ['id' => 42, 'entity' => 'event', 'title' => 'Evenement fictif',
+            'has_materials' => true, 'operation_period' => ['start' => '2026-11-14', 'end' => '2026-11-15']],
+        ['id' => 43, 'entity' => 'event', 'title' => 'Autre evenement fictif',
+            'has_materials' => false],
+    ];
+    $materials = [
+        ['id' => 103, 'reference' => 'TEST-103', 'name' => 'Projecteur fictif', 'quantity' => 6,
+            'material' => ['id' => 103, 'name' => 'Projecteur fictif', 'extra' => 'preserved']],
+        ['id' => 201, 'reference' => 'TEST-201', 'name' => 'Cable fictif', 'quantity' => 12,
+            'material' => ['id' => 201, 'name' => 'Cable fictif']],
+    ];
+    $detail = ['id' => 42, 'title' => 'Evenement fictif', 'materials' => $materials];
+    $f = login(new FakeTransport())
+        ->queue('GET', $path, 200, $list)
+        ->queue('GET', '/events/42', 200, $detail)
+        ->queue('GET', '/events/43', 200, ['id' => 43, 'materials' => []]);
+    $client = client($f);
+    $found = $client->bookingsInPeriod('2026-11-12', '2026-11-27');
+    ensure($found === $list, 'Liste de periode transformee');
+    $event = $client->event($found[0]['id']);
+    ensure($event === $detail, 'Fiche evenement ou materiel modifie');
+    ensure($event['materials'][0]['quantity'] === 6, 'Quantite modifiee');
+    ensure($event['materials'][0]['material']['extra'] === 'preserved', 'Champ inconnu perdu');
+    ensure($client->event(43)['materials'] === [], 'Materiel vide modifie');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Parcours de lecture non conforme');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET'
+            || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Ecriture metier interdite detectee');
+    }
+});
+
+test('P6.1 : une liste vide de bookings de periode est valide', function (): void {
+    $f = login(new FakeTransport())->queue(
+        'GET', '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27',
+        200, [],
+    );
+    ensure(client($f)->bookingsInPeriod('2026-11-12', '2026-11-27') === [], 'Liste vide refusee');
+    ensure($f->remaining() === 0, 'Requetes non consommees');
+});
+
+test('P6.1 : formats incorrects des bookings de periode rejetes', function (): void {
+    foreach ([['data' => []], [['bad-list']], [42], ['id' => 42], [null]] as $body) {
+        $f = login(new FakeTransport())->queue(
+            'GET', '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27',
+            200, $body,
+        );
+        try {
+            client($f)->bookingsInPeriod('2026-11-12', '2026-11-27');
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2 && $f->remaining() === 0,
+                'Nouvel appel apres une erreur de format');
+            continue;
+        }
+        throw new RuntimeException('Format de periode invalide accepte');
+    }
+});
+
+test('P6.1 : la validation des dates et identifiants intervient avant le reseau', function (): void {
+    $f = new FakeTransport();
+    $client = client($f);
+    foreach ([
+        fn () => $client->bookingsInPeriod('2026-02-30', '2026-03-01'),
+        fn () => $client->bookingsInPeriod('2026-13-01', '2026-12-01'),
+        fn () => $client->bookingsInPeriod('2026-11-27', '2026-11-12'),
+        fn () => $client->bookingsInPeriod('2026-1-01', '2026-01-12'),
+        fn () => $client->bookingsInPeriod('2026-01-01', '2026-01-02T00:00:00'),
+        fn () => $client->bookingsInPeriod('', '2026-01-01'),
+        fn () => $client->event(0),
+        fn () => $client->event(-1),
+    ] as $invalid) {
+        try {
+            $invalid();
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Parametre invalide accepte');
+    }
+    ensure($f->calls === [], 'Acces HTTP avec des parametres invalides');
+});
+
+test('P6.1 : GET des bookings de periode reconnecte une seule fois apres 401', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27';
+    $f = login(new FakeTransport())
+        ->queue('GET', $path, 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'FAKE_JWT_2'])
+        ->queue('GET', $path, 200, [['id' => 42, 'entity' => 'event']]);
+    ensure(client($f)->bookingsInPeriod('2026-11-12', '2026-11-27')[0]['id'] === 42,
+        'Lecture de periode apres reconnexion incorrecte');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Reconnexion incomplète');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET'
+            || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Ecriture de donnees inattendue');
+    }
+});
+
+test('P6.1 : HTTP 403 et 404 restent des erreurs de lecture sans retry', function (): void {
+    foreach ([403, 404] as $status) {
+        $f = login(new FakeTransport())->queue('GET', '/events/42', $status, ['error' => 'private']);
+        try {
+            client($f)->event(42);
+        } catch (HttpException $e) {
+            ensure($e->status === $status, 'Statut HTTP erroné');
+            ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Detail rejoue sur erreur HTTP');
+            continue;
+        }
+        throw new RuntimeException('Erreur HTTP de lecture acceptee');
+    }
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

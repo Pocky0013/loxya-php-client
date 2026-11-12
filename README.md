@@ -19,7 +19,8 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Diagnostic SaaS en lecture seule | **En test** | Outil CLI générique disponible ; vérification sur instance réelle à effectuer par chaque intégrateur. |
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
-| Autres ressources Loxya | **En projet** | Événements, matériel ou réservations : **aucune méthode publiée** ; routes à vérifier avant développement. |
+| Événements : liste, détail et matériel affecté (P6.1) | **En test** | Deux méthodes candidates en PR #9, fondées sur une capture réseau SaaS, **non encore publiées**. |
+| Autres ressources Loxya | **En projet** | Recherche globale d'événements, listes paginées, catalogue matériel et parcs : à étudier séparément. |
 | Première version `v0.1.0` | **En test** | Contenu et notes finalisés. Disponibilité de la version à vérifier dans les [Releases](https://github.com/Pocky0013/loxya-php-client/releases). |
 | Packagist | **En projet** | Installation depuis GitHub/VCS ; inscription Packagist non décidée. |
 
@@ -131,6 +132,39 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule. Le **[contrat de confirmation des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md)** précise les garanties et limites des POST/PUT, notamment les résultats incertains.
 
 Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
+
+### P6.1 — Lecture des événements et de leur matériel (candidat non publié)
+
+Cette évolution est développée **sur la PR #9 uniquement** ; elle ne fait **pas** partie du tag `v0.1.0`.
+
+| Méthode candidate | Route | Réponse |
+|---|---|---|
+| `bookingsInPeriod(string $startDate, string $endDate)` | `GET /api/bookings?paginated=0&period[start]=…&period[end]=…` | **Liste JSON** des événements d'une période |
+| `event(int $id)` | `GET /api/events/{id}` | **Fiche événement JSON**, dont la liste `materials` avec les quantités réservées |
+
+Ces deux routes ont été observées en **lecture seule** dans une capture réseau d'une instance Loxya SaaS autorisée. Les réponses sont conservées sans transformation dans le SDK.
+
+```php
+// Exemple pour une future version : non disponible dans v0.1.0.
+$bookings = $client->bookingsInPeriod('2027-05-01', '2027-05-31');
+foreach ($bookings as $booking) {
+    if (($booking['entity'] ?? null) !== 'event') {
+        continue;
+    }
+    $event = $client->event($booking['id']);
+    $materials = $event['materials'] ?? null;
+    if (!is_array($materials) || !array_is_list($materials)) {
+        throw new \UnexpectedValueException('Materiel de l evenement non disponible.');
+    }
+    foreach ($materials as $line) {
+        $reference = $line['reference'] ?? null;
+        $quantity = $line['quantity'] ?? null;
+        // Integrer ces informations selon les besoins de l'application.
+    }
+}
+```
+
+Les routes de recherche courte, de pagination globale, de disponibilité du catalogue et les variantes des fiches bookings restent à étudier : elles ne sont **pas** ajoutées dans cette première étape. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md).
 
 ## Fonctionnement et limites
 

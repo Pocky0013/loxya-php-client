@@ -71,6 +71,50 @@ final class Client
         return $this->request('GET', '/companies/'.self::id($id));
     }
 
+
+    /**
+     * Retourne la fiche brute d'un evenement, avec ses lignes de materiel affecte
+     * lorsque le SaaS expose le champ "materials".
+     *
+     * @return array<string,mixed>
+     */
+    public function event(int $id): array
+    {
+        return $this->request('GET', '/events/'.self::id($id));
+    }
+
+    /**
+     * Liste les bookings d'une periode. Reponse JSON non paginee (tableau racine).
+     * Les informations de materiel se trouvent dans la fiche event(), pas ici.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function bookingsInPeriod(string $startDate, string $endDate): array
+    {
+        foreach ([$startDate, $endDate] as $date) {
+            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+                throw new \InvalidArgumentException('Periode Loxya : date au format YYYY-MM-DD requise.');
+            }
+        }
+        if ($startDate > $endDate) {
+            throw new \InvalidArgumentException('Periode Loxya : fin anterieure au debut.');
+        }
+
+        $params = [
+            'paginated' => '0',
+            'period' => ['start' => $startDate, 'end' => $endDate],
+        ];
+        $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        $entries = $this->request('GET', '/bookings?'.$query, null, true);
+        foreach ($entries as $entry) {
+            if (!is_array($entry) || array_is_list($entry)) {
+                throw new ProtocolException('Entree de booking de periode inattendue.');
+            }
+        }
+        return $entries;
+    }
+
     public function createCompany(array $fields): array
     {
         self::requireFields($fields, ['legal_name', 'country'], self::COMPANY_FIELDS);
@@ -171,7 +215,7 @@ final class Client
         return $result;
     }
 
-    private function request(string $method, string $path, ?array $payload = null): array
+    private function request(string $method, string $path, ?array $payload = null, bool $acceptList = false): array
     {
         if ($this->token === null) {
             $this->authenticate();
@@ -183,7 +227,7 @@ final class Client
             $this->authenticate();
             $response = $this->exchange($method, $path, $payload, $this->token);
         }
-        return $this->decodeResponse($response, $method, $path);
+        return $this->decodeResponse($response, $method, $path, $acceptList);
     }
 
     private function authenticate(): void
@@ -208,7 +252,7 @@ final class Client
         return $this->transport->send($method, $path, $headers, $payload);
     }
 
-    private function decodeResponse(HttpResponse $response, string $method, string $path): array
+    private function decodeResponse(HttpResponse $response, string $method, string $path, bool $acceptList = false): array
     {
         if ($response->status < 200 || $response->status >= 300) {
             // Les parametres de recherche et le corps HTTP restent hors des erreurs.
@@ -222,7 +266,8 @@ final class Client
         } catch (\JsonException) {
             throw new ProtocolException('Reponse HTTP non JSON.');
         }
-        if (!is_array($data) || array_is_list($data)) {
+        if (!is_array($data) || array_is_list($data) !== $acceptList
+            || ($acceptList && !str_starts_with(ltrim($response->body), '['))) {
             throw new ProtocolException('Format de reponse JSON inattendu.');
         }
         return $data;

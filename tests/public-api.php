@@ -73,6 +73,8 @@ $methods = [
         ['page' => 'int', 'limit' => 'int', 'search' => '?string'],
         ['page' => 1, 'limit' => 30, 'search' => null]],
     [Client::class, 'beneficiary', false, 'array', ['id' => 'int']],
+    [Client::class, 'event', false, 'array', ['id' => 'int']],
+    [Client::class, 'bookingsInPeriod', false, 'array', ['startDate' => 'string', 'endDate' => 'string']],
     [Client::class, 'createCompany', false, 'array', ['fields' => 'array']],
     [Client::class, 'updateCompany', false, 'array', ['id' => 'int', 'fields' => 'array']],
     [Client::class, 'createBeneficiary', false, 'array', ['fields' => 'array']],
