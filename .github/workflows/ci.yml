@@ -27,6 +27,8 @@ jobs:
           coverage: none
       - name: Valider le paquet Composer
         run: composer validate --no-check-publish
+      - name: Installer la bibliotheque
+        run: composer install --no-interaction --prefer-dist --no-progress
       - name: Verifier la syntaxe
         run: php tests/lint.php
       - name: Executer les tests unitaires sans acces SaaS

@@ -1,16 +1,11 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Copier en config.local.php HORS du repertoire web (chmod 600).
- * Ne pas publier ce fichier une fois des secrets inscrits dedans.
- * Le connecteur est independant de la configuration du portail.
- */
+// A copier dans la configuration privee de l'application, hors du dossier vendor/.
 return [
     'base_url' => 'https://votre-instance.loxya.app',
-    'allowed_host' => 'votre-instance.loxya.app',
-    'username' => 'REMPLACER_IDENTIFIANT',
-    'password' => 'REMPLACER_MOT_DE_PASSE',
-    'connect_timeout' => 10,
-    'timeout' => 30,
+    'username' => 'identifiant_du_compte_loxya',
+    'password' => 'mot_de_passe_du_compte_loxya',
+    // 'connect_timeout' => 10,
+    // 'timeout' => 30,
 ];

@@ -1,5 +1,6 @@
 # Secrets et donnees sensibles : jamais en Git
 /config.local.php
+/config/loxya.php
 /config.*.local.php
 /.env
 /.env.*

@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__.'/../bootstrap.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use Electraudio\Loxya\Client;
 use Electraudio\Loxya\HttpException;
+use Electraudio\Loxya\Factory;
 use Electraudio\Loxya\HttpResponse;
 use Electraudio\Loxya\Transport;
 
@@ -48,9 +49,12 @@ function client(FakeTransport $transport): Client
 {
     return new Client($transport, 'faux_utilisateur', 'faux_mot_de_passe');
 }
+$testCount = 0;
 function test(string $name, Closure $run): void
 {
+    global $testCount;
     $run();
+    $testCount++;
     echo '[OK] '.$name."\n";
 }
 
@@ -75,7 +79,7 @@ test('Lecture paginee encodee et contrat data + pagination', function (): void {
 });
 
 test('Creation d un beneficiaire: un POST seulement puis GET', function (): void {
-    $b = ['first_name' => 'Test', 'last_name' => 'ElectraudioPoC', 'country' => 'CH'];
+    $b = ['first_name' => 'Marie', 'last_name' => 'Exemple', 'country' => 'CH'];
     $f = login(new FakeTransport())
         ->queue('POST', '/beneficiaries', 201, ['id' => 88] + $b)
         ->queue('GET', '/beneficiaries/88', 200, ['id' => 88] + $b);
@@ -157,4 +161,34 @@ test('Validation des champs et prevention de payload heterogene', function (): v
     ensure($f->calls === [], 'Une requete inattendue a ete envoyee');
 });
 
-echo "10 tests isoles reussis (aucune requete reseau).\n";
+test('Configuration incomplete refusee avant tout appel HTTP', function (): void {
+    try {
+        Factory::fromArray(['base_url' => 'https://demo.loxya.app', 'username' => 'integration']);
+    } catch (InvalidArgumentException) {
+        return;
+    }
+    throw new RuntimeException('Mot de passe manquant accepte');
+});
+
+if (extension_loaded('curl')) {
+    test('Configuration depuis un tableau et hote deduit de l URL', function (): void {
+        $client = Factory::fromArray([
+            'base_url' => 'https://demo.loxya.app',
+            'username' => 'integration',
+            'password' => 'mot-de-passe-de-test',
+        ]);
+        ensure($client instanceof Client, 'Client absent');
+        try {
+            Factory::fromArray([
+                'base_url' => 'http://demo.loxya.app',
+                'username' => 'integration',
+                'password' => 'mot-de-passe-de-test',
+            ]);
+        } catch (InvalidArgumentException) {
+            return;
+        }
+        throw new RuntimeException('URL non HTTPS acceptee');
+    });
+}
+
+echo $testCount." tests isoles reussis (aucune requete reseau).\n";

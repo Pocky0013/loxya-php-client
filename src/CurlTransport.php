@@ -3,14 +3,7 @@ declare(strict_types=1);
 
 namespace Electraudio\Loxya;
 
-/**
- * Transport HTTPS unique pour Loxya.
- *
- * - Hote autorise strictement epingle dans la configuration (anti-SSRF).
- * - Verification du certificat TLS obligatoire ; aucune redirection HTTP suivie.
- * - Aucun cookie ni jeton persistant.
- * - Aucun re-essai au niveau transport, surtout pour POST/PUT.
- */
+/** Transport HTTPS sans redirection ni nouvelle tentative automatique. */
 final class CurlTransport implements Transport
 {
     private readonly string $baseUrl;
@@ -29,7 +22,6 @@ final class CurlTransport implements Transport
         if (!is_array($parts) || strtolower((string)($parts['scheme'] ?? '')) !== 'https'
             || strtolower((string)($parts['host'] ?? '')) !== $normalizedHost
             || $normalizedHost === '' || !preg_match('/^[a-z0-9.-]+$/D', $normalizedHost)
-            || isset($parts['user'], $parts['pass'])
             || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['query']) || isset($parts['fragment'])
             || !in_array($parts['path'] ?? '', ['', '/'], true)
@@ -43,7 +35,6 @@ final class CurlTransport implements Transport
 
     public function send(string $method, string $path, array $headers, ?array $payload): HttpResponse
     {
-        // Les chemins sont toujours fixes dans Client, jamais fournis par un internaute.
         if (!in_array($method, ['GET', 'POST', 'PUT'], true)
             || !preg_match('#^/[a-z][a-z0-9/-]*(?:\?[a-z0-9%._~=&-]+)?$#iD', $path)
             || str_contains($path, '//') || str_contains($path, '..')) {
@@ -63,9 +54,8 @@ final class CurlTransport implements Transport
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_USERAGENT => 'Electraudio-Loxya-PHP-Client/0.1.0 (unofficial)',
+            CURLOPT_USERAGENT => 'electraudio/loxya-php-client',
         ];
-        // CURLOPT_PROTOCOLS_STR est disponible dans les versions recentes de PHP/cURL.
         if (defined('CURLOPT_PROTOCOLS_STR')) {
             $settings[CURLOPT_PROTOCOLS_STR] = 'https';
         } else {
@@ -84,7 +74,7 @@ final class CurlTransport implements Transport
         curl_close($handle);
 
         if ($body === false || $errorNumber !== 0 || $status === 0) {
-            // Ne pas exposer curl_error() : son texte peut contenir des donnees d'infrastructure.
+            // Le detail de curl_error() peut contenir des donnees de connexion.
             throw new TransportException('Echec de transport HTTPS (cURL '.(int)$errorNumber.').');
         }
         return new HttpResponse($status, $body);

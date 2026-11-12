@@ -1,43 +1,35 @@
-# Note pour l'éditeur Loxya - 12 novembre 2026
+# Utilisation des routes HTTP internes de Loxya
 
-## Objet
+**Note technique - novembre 2026**
 
-Valider l'utilisation expérimentale des routes HTTP internes de Loxya par un client PHP autonome depuis l'hébergement Infomaniak d'Electraudio. Le code est écrit indépendamment du code de Loxya. Aucune écriture SQL n'est réalisée; la connexion de lecture SQL existante pour les événements n'est pas modifiée.
+Le paquet `electraudio/loxya-php-client` permet à une application PHP de lire et de modifier des contacts Loxya sans accès en écriture à sa base de données. Il s'agit d'un client non officiel, installable avec Composer et indépendant de l'application qui l'utilise.
 
-## Tests réellement validés dans le SaaS
+## Routes utilisées
 
-Instance de test : `https://electraudio.loxya.app` ; compte technique dédié, sans diffusion d'identifiants.
+| Opération | Route |
+|---|---|
+| Connexion et lecture de session | `POST /api/session`, `GET /api/session` |
+| Bénéficiaires | `GET/POST /api/beneficiaries`, `GET/PUT /api/beneficiaries/{id}` |
+| Sociétés | `GET/POST /api/companies`, `GET/PUT /api/companies/{id}` |
+| Relation bénéficiaire-société | `PUT /api/beneficiaries/{id}` avec `company_id` (identifiant ou `null`) |
 
-- `POST /api/session` : authentification réussie et jeton JWT.
-- `GET /api/session` : identification session (ID utilisateur 31 dans l'essai).
-- `GET /api/beneficiaries` : liste paginée.
-- `GET /api/companies` : liste paginée.
-- `POST /api/beneficiaries` : création d'un bénéficiaire fictif (ID 88), puis `GET /api/beneficiaries/88`.
-- `PUT /api/beneficiaries/88` : modification d'une note de test, confirmée par relecture.
-- `POST /api/companies` : création d'une société fictive (ID 42), puis `GET /api/companies/42`.
-- `PUT /api/companies/42` : modification de la note et de l'adresse, confirmée par relecture.
-- `PUT /api/beneficiaries/88` avec `company_id=42`, puis `company_id=null` : association et dissociation confirmées par GET et par l'interface utilisateur.
+La connexion envoie `identifier` et `password` au format JSON. Le JWT renvoyé est conservé en mémoire puis transmis dans `Authorization: Bearer ...`.
 
-Aucune suppression de fiche ni opération sur devis/événements/factures n'est prévue.
+Le client vérifie TLS, refuse les redirections et les hôtes non conformes à la configuration. Les requêtes de lecture peuvent être rejouées une fois après une nouvelle authentification en cas de `401`. Les écritures ne sont jamais rejouées automatiquement et sont suivies d'une relecture de la fiche.
 
-## Fonctionnement de la bibliothèque
+## Vérifications effectuées
 
-- Identifiant et mot de passe dans un fichier de configuration privé (extérieur à Git et à la racine web).
-- Authentification via JSON `identifier`/`password` ; JWT conservé seulement en mémoire et transmis dans `Authorization: Bearer ...`.
-- Base URL HTTPS et hôte de destination fixés par la configuration; certificat TLS vérifié, redirections désactivées.
-- Un seul point d'accès pour les applications : `Electraudio\Loxya\Client` (construction via `Factory`).
-- GET paginés (`page`, `limit`, `search`) ; POST/PUT explicites. Après mutation, relecture GET ciblée.
-- Une erreur 401 sur GET peut déclencher une reconnexion et un unique GET supplémentaire ; POST et PUT ne sont jamais réessayés automatiquement.
-- En cas de doute sur le résultat d'une écriture, intervention humaine plutôt que répétition de la demande.
-- Bibliothèque PHP 8.2+ sans dépendance du portail, distribuable par Composer; CLI et tests de simulation fournis.
+Des essais sur une instance SaaS Loxya ont confirmé l'authentification, la lecture, la création et la modification de fiches fictives de bénéficiaires et de sociétés, ainsi que leur association et dissociation. Ces tests ne constituent pas une garantie de compatibilité avec toutes les versions de Loxya.
 
-## Questions soumises à Loxya
+La bibliothèque actuelle est testée avec un transport simulé. L'installation Composer et la compatibilité avec l'instance cible seront vérifiées séparément lors de l'intégration.
 
-1. L'utilisation de ces routes internes sur une instance SaaS Premium est-elle acceptable pour un compte technique dédié, et à quelles conditions ?
-2. Les chemins et champs consultés sont-ils identiques dans la version SaaS déployée et le dépôt public, ou existe-t-il un schéma de compatibilité à privilégier ?
-3. Quelles limites de volume/fréquence et quelles règles de sessions/JWT recommandez-vous ?
-4. Existe-t-il un point d'extension pérenne, une méthode d'authentification machine ou un calendrier de l'API publique ?
-5. Pouvez-vous confirmer les droits nécessaires à la lecture/écriture des sociétés, bénéficiaires et de `company_id` ?
-6. Un client tiers autonome et, à terme, un paquet PHP public non officiel vous conviendraient-ils (nom, licence, avertissements, marque) ?
+## Points à confirmer avec Loxya
 
-**Statut :** preuve technique validee sur SaaS en novembre 2026 ; nouvelle bibliothèque prête pour revue statique, non encore testée en authentification réelle; aucune garantie de stabilité contractuelle.
+1. L'utilisation de ces routes par un client externe sur une instance SaaS est-elle autorisée et sous quelles conditions ?
+2. Les structures des données et les droits nécessaires sont-ils identiques dans les versions SaaS et publiques ?
+3. Existe-t-il des limites d'appels ou des recommandations concernant le renouvellement des sessions ?
+4. Une méthode d'authentification propre aux intégrations est-elle prévue ?
+5. Quelles garanties de compatibilité ou étapes de migration sont envisagées pour la future API publique ?
+6. La distribution d'un client PHP non officiel, éventuellement en open source, est-elle envisageable ?
+
+Le paquet ne modifie ni les événements ni les documents de facturation. Il ne contient aucun code source repris de Loxya.

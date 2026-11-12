@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Electraudio\Loxya;
 
-/** Contrat injectable: toute communication HTTP passe par ce transport. */
+/** Permet de remplacer le transport HTTP dans les tests. */
 interface Transport
 {
     /** @param list<string> $headers */

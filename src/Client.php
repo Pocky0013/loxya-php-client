@@ -3,16 +3,7 @@ declare(strict_types=1);
 
 namespace Electraudio\Loxya;
 
-/**
- * Facade unique pour l'API HTTP interne de Loxya (non publique/non versionnee).
- *
- * Les consommateurs (CLI aujourd'hui, portail demain) ne connaissent ni les
- * routes /api, ni le Bearer JWT, ni les details de cURL. Aucun SQL Loxya ici.
- *
- * AVERTISSEMENT : une requete POST/PUT n'est JAMAIS repetee automatiquement.
- * Si la reponse est perdue, l'operation a peut-etre ete appliquee dans Loxya.
- * Verifier manuellement la fiche cible avant une nouvelle tentative.
- */
+/** Client des contacts Loxya. Les POST et PUT ne sont jamais rejoues automatiquement. */
 final class Client
 {
     private ?string $token = null;
@@ -27,13 +18,13 @@ final class Client
         }
     }
 
-    /** Valide la session. Ne renvoie jamais le JWT au consommateur. */
+    /** Lit la session sans exposer le jeton. */
     public function session(): array
     {
         return $this->request('GET', '/session');
     }
 
-    /** Pagination native Loxya : page (1..), limit (1..100), search facultatif. */
+    /** Liste paginee ; la recherche est facultative. */
     public function beneficiaries(int $page = 1, int $limit = 30, ?string $search = null): array
     {
         return $this->getListing('/beneficiaries', $page, $limit, $search);
@@ -44,7 +35,7 @@ final class Client
         return $this->request('GET', '/beneficiaries/'.self::id($id));
     }
 
-    /** Cree UNE fiche ; la relecture valide l'ID mais pas les champs normalises. */
+    /** Cree une fiche et la relit par son identifiant. */
     public function createBeneficiary(array $fields): array
     {
         self::requireFields($fields, ['first_name', 'last_name', 'country'], self::BENEFICIARY_FIELDS);
@@ -52,7 +43,7 @@ final class Client
         return $this->beneficiary(self::responseId($created));
     }
 
-    /** PUT partiel selon le code public courant ; pas de suppression de champs implicite. */
+    /** Mise a jour partielle, suivie d'une relecture. */
     public function updateBeneficiary(int $id, array $fields): array
     {
         self::requirePatch($fields, self::BENEFICIARY_FIELDS);
@@ -87,19 +78,15 @@ final class Client
     }
 
     /**
-     * Lien personne-societe via beneficiary.company_id, tel que valide sur SaaS.
-     *
-     * expectedCompanyId = ancienne valeur attendue ; null pour une fiche libre.
-     * Cette comparaison empeche un ecrasement accidentel, mais n'est PAS un
-     * verrou transactionnel : l'API ne fournit pas encore d'ETag/If-Match connu.
-     * Appel d'ecriture : confirmation et droits a fournir par le futur appelant.
+     * Change la societe d'un beneficiaire si la relation n'a pas evolue.
+     * La verification n'est pas atomique : Loxya ne fournit pas d'ETag connu.
      */
     public function setBeneficiaryCompany(int $beneficiaryId, ?int $newCompanyId, ?int $expectedCompanyId): array
     {
         self::id($beneficiaryId);
         if ($newCompanyId !== null) {
             self::id($newCompanyId);
-            $this->company($newCompanyId); // Refuser un rattachement a une societe absente.
+            $this->company($newCompanyId);
         }
         if ($expectedCompanyId !== null) {
             self::id($expectedCompanyId);
@@ -128,7 +115,6 @@ final class Client
         }
         $params = ['page' => $page, 'limit' => $limit];
         if ($search !== null && trim($search) !== '') {
-            // Compter les caracteres UTF-8 sans imposer ext-mbstring.
             $length = preg_match_all('/./us', $search);
             if ($length === false || $length < 2 || $length > 180) {
                 throw new \InvalidArgumentException('Recherche : 2 a 180 caracteres.');
@@ -150,8 +136,7 @@ final class Client
         }
         $response = $this->exchange($method, $path, $payload, $this->token);
         if ($response->status === 401 && $method === 'GET') {
-            // Seules les lectures idempotentes peuvent etre reauthentifiees
-            // et rejouees. Ne JAMAIS relancer POST/PUT automatiquement.
+            // Ne jamais retenter une ecriture dont l'etat est incertain.
             $this->token = null;
             $this->authenticate();
             $response = $this->exchange($method, $path, $payload, $this->token);
@@ -184,9 +169,7 @@ final class Client
     private function decodeResponse(HttpResponse $response, string $method, string $path): array
     {
         if ($response->status < 200 || $response->status >= 300) {
-            // Ne jamais remonter le corps de reponse (peut contenir des donnees privees).
-            // Une requete de recherche peut contenir un nom/e-mail: exclure les
-            // parametres de la chaine d'exception (journaux).
+            // Les parametres de recherche et le corps HTTP restent hors des erreurs.
             throw new HttpException($response->status, $method, explode('?', $path, 2)[0]);
         }
         if (trim($response->body) === '') {
@@ -218,8 +201,7 @@ final class Client
         if ($fields === [] || array_is_list($fields)) {
             throw new \InvalidArgumentException('Payload vide ou non associatif.');
         }
-        // Defense en profondeur : seules les proprietes de contacts sont acceptees.
-        // Les choix d'ecriture et ACL restent de la responsabilite du futur portail.
+        // Seuls les champs de contact connus peuvent etre envoyes.
         foreach (array_keys($fields) as $field) {
             if (!is_string($field) || !in_array($field, $allowed, true)) {
                 throw new \InvalidArgumentException('Champ de contact non autorise : '.(string)$field);
@@ -227,14 +209,12 @@ final class Client
         }
     }
 
-    /** Champs explicitement supportes pour le modele Beneficiary. */
     private const BENEFICIARY_FIELDS = [
         'first_name', 'last_name', 'email', 'reference', 'phone', 'company_id',
         'street', 'additional_street', 'postal_code', 'administrative_area',
         'locality', 'country', 'note',
     ];
 
-    /** Champs explicitement supportes pour le modele Company. */
     private const COMPANY_FIELDS = [
         'legal_name', 'is_public_entity', 'registration_id', 'vat_number',
         'invoice_identifier', 'service_code', 'phone', 'street',

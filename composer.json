@@ -1,8 +1,9 @@
 {
   "name": "electraudio/loxya-php-client",
-  "description": "Client PHP autonome pour l'API HTTP interne de Loxya (integration non officielle)",
+  "description": "Client PHP non officiel pour les contacts de Loxya",
   "type": "library",
-  "keywords": ["loxya", "php", "api", "integration"],
+  "license": "proprietary",
+  "keywords": ["loxya", "php", "api", "contacts"],
   "require": {
     "php": "^8.2",
     "ext-curl": "*",
@@ -13,11 +14,8 @@
       "Electraudio\\Loxya\\": "src/"
     }
   },
-  "bin": ["bin/loxya"],
   "scripts": {
     "test": "@php tests/run.php",
     "lint": "@php tests/lint.php"
-  },
-  "minimum-stability": "stable",
-  "prefer-stable": true
+  }
 }

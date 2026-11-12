@@ -1,128 +1,107 @@
-# Loxya PHP Client (non officiel)
+# Loxya PHP Client
 
-Bibliothèque PHP **autonome** pour communiquer avec les routes HTTP internes de Loxya. Projet expérimental développé pour valider une intégration SaaS ; **il n'est ni une API officielle Loxya ni une extension approuvée par l'éditeur**.
+Client PHP pour consulter et gérer les bénéficiaires et les sociétés de [Loxya](https://loxya.com/) depuis une autre application.
 
-**Périmètre v0.1.0 :** authentification, bénéficiaires, sociétés et association bénéficiaire-société. Ni SQL, ni Bexio, ni portail, ni suppression de fiche. Aucune tâche planifiée et aucune synchronisation automatique de contacts.
+Ce paquet utilise les routes HTTP internes de Loxya. **Il n'est pas officiel** et ces routes peuvent évoluer. Il ne nécessite ni accès SQL ni installation particulière côté Loxya, mais un compte utilisateur disposant des droits adaptés.
 
-## Organisation
+## Installation
 
-```text
-loxya-php-client/
-├── composer.json               # paquet autonome, autoload PSR-4
-├── src/                        # client métier + transport HTTPS + exceptions
-├── bin/loxya                   # diagnostic CLI sans portail
-├── config.example.php          # exemple public SANS secrets
-├── config.local.php            # configuration privée, exclue de Git
-├── bootstrap.php               # autoload hors Composer pour tests CLI directs
-├── tests/                      # tests HTTP simulés, sans aucune connexion réseau
-└── docs/                       # portée, exploitation, transmission développeurs
-```
+**Prérequis :** PHP 8.2 ou supérieur, extensions `curl` et `json`, Composer 2.
 
-**Prérequis :** PHP >= 8.2, `ext-curl`, `ext-json`. Aucun framework et aucune base de données nécessaires.
-
-## Démarrage sur Infomaniak, sans Composer
-
-Déposer le dossier **en dehors de `sites/` et de toute racine Web**, par exemple `~/loxya-php-client/`.
+Le dépôt étant actuellement privé et non publié sur Packagist, ajoutez-le comme source VCS dans le projet qui doit l'utiliser :
 
 ```bash
-cd ~/loxya-php-client
-cp config.example.php config.local.php
-chmod 600 config.local.php
-# Modifier localement base_url, allowed_host, username et password.
-php tests/run.php
-php bin/loxya check
-php bin/loxya companies --search=ElectraudioPoC
-php bin/loxya beneficiary 88
+composer config repositories.loxya vcs https://github.com/Pocky0013/loxya-php-client
+composer require electraudio/loxya-php-client:dev-main
 ```
 
-**Important :** ne jamais transmettre `config.local.php` au développeur Loxya, ni le placer dans le dépôt ou une archive partageable. Utiliser un compte Loxya dédié avec les seuls droits utiles. `allowed_host` doit être **le nom d'hôte précis** présent dans `base_url` : le transport refuse toute redirection et tout changement d'hôte.
+Il faut disposer d'un accès GitHub à ce dépôt pour l'installer. Le code et ses dépendances sont ensuite gérés normalement par Composer (`composer.lock` et `vendor/`). Quand une version stable sera publiée sur Packagist, la configuration VCS ne sera plus nécessaire.
 
-Pour utiliser un fichier de configuration indépendant de l'installation :
+> L'installation Composer s'effectue lors de la préparation ou du déploiement de l'application, **pas à chaque requête HTTP**. Le client ne contacte Loxya que lorsqu'une méthode est appelée.
 
-```bash
-export LOXYA_CONFIG="$HOME/private/loxya-config.php"
-php bin/loxya check
-```
+## Configuration
 
-L'outil CLI conserve des commandes de **preuve de concept** (`poc-*`) limitées aux fiches fictives marquées. Il faut toujours `--confirm` pour les exécuter. Voir `php bin/loxya help`. Des POST/PUT touchent la véritable instance; ne les lancer qu'avec autorisation explicite.
+Créez un compte utilisateur Loxya dédié à l'intégration, avec les droits de lecture et de modification nécessaires pour les bénéficiaires et les sociétés.
 
-## Installation Composer depuis un dépôt GitHub
-
-L'objectif est un dépôt séparé, proposé sous le nom `Pocky0013/loxya-php-client`, **privé initialement**. Il n'a **pas encore été créé ni publié**. Quand le dépôt existera et disposera du tag `0.1.0`, ajouter dans le `composer.json` **du projet utilisateur** :
-
-```json
-{
-  "repositories": [
-    { "type": "vcs", "url": "https://github.com/Pocky0013/loxya-php-client" }
-  ],
-  "require": {
-    "electraudio/loxya-php-client": "^0.1"
-  }
-}
-```
-
-Puis `composer update electraudio/loxya-php-client` avec des identifiants GitHub adaptés au dépôt privé, stockés exclusivement dans le gestionnaire de secrets de l'environnement. Plus tard, si le paquet est publié sur Packagist, la déclaration `repositories` ne sera plus nécessaire.
-
-> **Ne pas intégrer au portail avant validation de l'éditeur Loxya, revue de sécurité, tests DEV et approbation de la procédure Composer / déploiement Infomaniak.**
-
-## Utiliser le client depuis n'importe quel PHP
+Copiez [`config.example.php`](config.example.php) dans un fichier privé de votre application, par exemple `config/loxya.php` :
 
 ```php
 <?php
-require __DIR__.'/vendor/autoload.php';
+return [
+    'base_url' => 'https://votre-instance.loxya.app',
+    'username' => 'votre_identifiant_loxya',
+    'password' => 'votre_mot_de_passe_loxya',
+];
+```
+
+`base_url` est l'adresse de votre instance, **sans `/api`**. L'identifiant et le mot de passe sont ceux du compte Loxya, pas ceux de GitHub. Le client s'authentifie sur `/api/session`, conserve le JWT en mémoire et l'envoie dans les requêtes suivantes.
+
+**Ne placez jamais ce fichier dans `vendor/` ou dans Git.** Conservez-le hors de la racine publique, avec les droits d'accès limités. Ajoutez notamment `/config/loxya.php` au `.gitignore` de votre application. Vous pouvez également fournir la configuration depuis votre gestionnaire de secrets avec `Factory::fromArray()`.
+
+## Utilisation
+
+```php
+<?php
+require __DIR__ . '/vendor/autoload.php';
 
 use Electraudio\Loxya\Factory;
 
-// Le secret est fourni par l'application consommatrice, hors du depot Git.
-$loxya = Factory::fromFile('/chemin/prive/loxya-config.php');
+$loxya = Factory::fromFile(__DIR__ . '/config/loxya.php');
 
-$session = $loxya->session();
-$companies = $loxya->companies(page: 1, limit: 30, search: 'Exemple');
-$company = $loxya->company(42);
-$beneficiary = $loxya->beneficiary(88);
+// Lire une liste ou une fiche.
+$companies = $loxya->companies(page: 1, limit: 30);
+$beneficiaryId = 123; // A remplacer par un ID provenant de votre application.
+$beneficiary = $loxya->beneficiary($beneficiaryId);
 
-// Ces ecritures sont explicites : le consommateur fournit ses controles
-// d'autorisation, la confirmation de l'utilisateur et l'anti-doublon.
-// $new = $loxya->createCompany(['legal_name' => 'Test', 'country' => 'CH']);
-// $after = $loxya->updateCompany(42, ['note' => 'Exemple']);
-// $after = $loxya->setBeneficiaryCompany(88, 42, null);
+// Créer une société.
+$newCompany = $loxya->createCompany([
+    'legal_name' => 'Société exemple',
+    'country' => 'CH',
+]);
+
+// Modifier une fiche existante.
+$loxya->updateCompany((int)$newCompany['id'], ['phone' => '+41211234567']);
+
+// Rattacher ce bénéficiaire si aucune société ne lui était liée.
+$loxya->setBeneficiaryCompany($beneficiaryId, (int)$newCompany['id'], null);
 ```
 
-Interface publique :
+Les écritures ci-dessus sont des exemples : dans une application réelle, récupérez les identifiants depuis vos propres données et vérifiez les droits de l'utilisateur avant de les exécuter.
 
-| Méthode | Fonction |
+### Méthodes disponibles
+
+| Méthode | Utilisation |
 |---|---|
-| `session()` | Authentifie puis lit la session courante |
-| `beneficiaries($page, $limit, $search)` | Liste paginée |
-| `beneficiary($id)` | Fiche individuelle |
-| `createBeneficiary($fields)` / `updateBeneficiary($id, $fields)` | Création / modification explicites |
-| `companies($page, $limit, $search)` | Liste paginée |
-| `company($id)` | Fiche individuelle |
-| `createCompany($fields)` / `updateCompany($id, $fields)` | Création / modification explicites |
-| `setBeneficiaryCompany($beneficiaryId, $newCompanyId, $expectedCompanyId)` | Association ou dissociation contrôlée |
+| `session()` | Vérifier la session utilisateur Loxya |
+| `beneficiaries($page, $limit, $search)` | Lister ou rechercher des bénéficiaires |
+| `beneficiary($id)` | Lire un bénéficiaire |
+| `createBeneficiary($fields)` | Créer un bénéficiaire |
+| `updateBeneficiary($id, $fields)` | Modifier un bénéficiaire |
+| `companies($page, $limit, $search)` | Lister ou rechercher des sociétés |
+| `company($id)` | Lire une société |
+| `createCompany($fields)` | Créer une société |
+| `updateCompany($id, $fields)` | Modifier une société |
+| `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer ou dissocier un bénéficiaire et une société |
 
-## Garanties et limites
+Les listes utilisent la pagination native de Loxya : le résultat contient `data` et `pagination`. Pour dissocier une société, passez `null` comme deuxième argument de `setBeneficiaryCompany()`. Le troisième argument indique l'ancien `company_id` attendu afin d'éviter d'écraser silencieusement une relation modifiée ailleurs.
 
-- **Protocole :** HTTPS et validation TLS obligatoires ; serveur fixé par `allowed_host`, sans redirection HTTP. Identifiant et mot de passe uniquement dans le POST HTTPS `/api/session`; JWT transmis en Bearer, jamais retourné par l'API publique du connecteur.
-- **Session :** jeton JWT gardé uniquement en mémoire PHP. Une lecture GET renvoyant HTTP 401 provoque une unique reconnexion et un unique rejeu du GET. Aucun rejeu automatique de POST ou PUT, même après erreur ou expiration.
-- **Écriture :** réponse suivie d'un GET ciblé; le client ne prétend pas fournir une transaction entre deux systèmes. Pour les mutations génériques, vérifier les champs métier retournés avant de confirmer un succès à l'utilisateur.
-- **Conflits :** pour `company_id`, comparaison préalable avec l'ancienne valeur attendue. Ce contrôle **n'est pas atomique** ; Loxya ne fournit pas ici de mécanisme `If-Match` connu.
-- **Sécurité applicative :** droits du portail, consentement, journalisation, dédoublonnage et arbitrage des champs relèvent du consommateur. Le client n'accorde jamais de droits supplémentaires à l'utilisateur Loxya.
-- **Confidentialité :** exceptions sans contenu des réponses ni texte des recherches. Éviter de journaliser les arguments des méthodes contenant des données clients.
-- **Compatibilité :** API interne non documentée comme contrat stable. Les routes, schémas, ACL, modalités d'authentification et comportements peuvent changer. Tests de non-régression à chaque évolution.
-- **Absence d'appel SaaS dans CI :** les tests utilisent un `Transport` simulé ; aucun identifiant réel n'est utilisé.
+## Comportement et limites
 
-## Exécuter les contrôles
+- Le transport utilise HTTPS avec vérification TLS, sans redirection. L'hôte autorisé est déduit de `base_url`.
+- Le client renouvelle automatiquement la session une seule fois lorsqu'une lecture renvoie `401`. Il ne répète **jamais** automatiquement une création ou une modification.
+- Après une écriture, il relit la fiche concernée. L'application appelante reste responsable de vérifier les champs attendus et de gérer les éventuels conflits.
+- Si une écriture échoue ou si sa réponse est perdue, **vérifiez la fiche dans Loxya avant de recommencer** : la modification peut avoir été enregistrée.
+- Les permissions, la recherche de doublons et le rapprochement avec d'autres annuaires appartiennent à l'application qui utilise le client.
+- Les routes étant internes à Loxya, une mise à jour du SaaS peut nécessiter une adaptation du paquet.
+
+## Développement
 
 ```bash
-php tests/run.php
-php tests/lint.php
+composer install
+composer test
+composer lint
 ```
 
-Aucun test automatisé n'envoie d'écriture réelle. Les essais précédents de bénéficiaires, sociétés et relations ont été validés manuellement par l'exploitant sur `electraudio.loxya.app` le 12 novembre 2026 ; **la présente refactorisation Composer n'a pas encore été revalidée sur le SaaS**.
+Les tests utilisent un transport HTTP simulé et ne se connectent pas à un serveur Loxya. Le détail des routes utilisées et les points restant à confirmer avec l'éditeur figurent dans [`docs/REVUE-EDITEUR.md`](docs/REVUE-EDITEUR.md).
 
-## Publication et compatibilité éditeur
-
-Avant de rendre le dépôt public : faire valider par Loxya le principe d'utilisation de ses routes internes, le nom du projet, les contraintes de charge, les ACL, la compatibilité Premium/SaaS et la politique en cas de changement d'API. Définir ensuite une licence pour **notre propre code**, sans recopier le code source Loxya ni présumer de droits sur sa variante Premium.
-
-Documentation de référence : `docs/REVUE-EDITEUR.md` et PDF **`docs/Revue-technique-API-interne-Loxya.pdf`** (deux pages).
+Ce projet est actuellement privé, sans licence de redistribution. Une publication ouverte et une version stable seront envisagées après validation avec l'équipe Loxya.

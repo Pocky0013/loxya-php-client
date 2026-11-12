@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Electraudio\Loxya;
 
-/** Point de construction commun pour une application, la CLI ou le portail. */
 final class Factory
 {
     public static function fromFile(string $configPath): Client
@@ -18,20 +17,20 @@ final class Factory
         return self::fromArray($config);
     }
 
-    /** Utile pour l'integration a des secrets geres par une autre application. */
     public static function fromArray(array $config): Client
     {
         $baseUrl = (string)($config['base_url'] ?? '');
-        $host = (string)($config['allowed_host'] ?? '');
         $user = (string)($config['username'] ?? '');
         $password = (string)($config['password'] ?? '');
-        if ($baseUrl === '' || $host === '' || $user === '' || $password === ''
-            || str_contains($user, 'REMPLACER') || str_contains($password, 'REMPLACER')) {
-            throw new \InvalidArgumentException('Configurer base_url, allowed_host, username et password.');
+        if ($baseUrl === '' || trim($user) === '' || $password === '') {
+            throw new \InvalidArgumentException('Configurer base_url, username et password.');
         }
+
+        // L'hote est fixe par l'URL configuree ; CurlTransport refuse les redirections.
+        $host = parse_url($baseUrl, PHP_URL_HOST);
         return new Client(new CurlTransport(
             $baseUrl,
-            $host,
+            is_string($host) ? $host : '',
             (int)($config['connect_timeout'] ?? 10),
             (int)($config['timeout'] ?? 30),
         ), $user, $password);
