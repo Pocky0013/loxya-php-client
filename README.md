@@ -142,11 +142,12 @@ Les méthodes ci-dessous sont **proposées dans une branche de développement** 
 | `eventSuggestions(?string $search = null)` | `GET /api/events` : recherche courte avec `count` et `data`, **pas** une liste exhaustive |
 | `event(int $id)` | `GET /api/events/{id}` : détail de l'événement |
 | `bookings(int $page = 1, int $limit = 30, ?string $search = null, bool $archived = false)` | `GET /api/bookings` : liste paginée, maximum 30 éléments par page dans la version étudiée |
+| `bookingsInPeriod(string $startDate, string $endDate)` | `GET /api/bookings?paginated=0&period[start]=…&period[end]=…` : liste non paginée d'une période, observée sur une instance SaaS |
 | `eventBooking(int $id)` | `GET /api/bookings/event/{id}` : vue booking d'un événement |
 
 Les deux routes de liste n'ont **pas** la même forme de réponse. Voir le [contrat candidat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md). Ne les utiliser sur une instance réelle qu'après vérification des droits et des routes avec l'éditeur.
 
-**Parcours prioritaire P6 : liste des événements → détail → matériel réservé.** Le code public de Loxya indique que `event($id)` et `eventBooking($id)` renvoient une fiche contenant les lignes `materials`, chacune avec sa `quantity` et des informations de référence. Le résumé `/bookings/event/{id}/summary` visible dans le planning **ne contient pas cette liste**.
+**Parcours prioritaire P6 : liste des événements → détail → matériel réservé.** Une capture réseau SaaS a confirmé la réponse de liste par période et les lignes de matériel dans une fiche détaillée, sans garantir le même comportement sur toutes les instances. Le code public de Loxya indique que `event($id)` et `eventBooking($id)` renvoient une fiche contenant les lignes `materials`, chacune avec sa `quantity` et des informations de référence. Le résumé `/bookings/event/{id}/summary` visible dans le planning **ne contient pas cette liste**.
 
 ```php
 // Exemple illustratif, uniquement après validation des routes SaaS.

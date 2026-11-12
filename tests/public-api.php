@@ -78,6 +78,8 @@ $methods = [
     [Client::class, 'bookings', false, 'array',
         ['page' => 'int', 'limit' => 'int', 'search' => '?string', 'archived' => 'bool'],
         ['page' => 1, 'limit' => 30, 'search' => null, 'archived' => false]],
+    [Client::class, 'bookingsInPeriod', false, 'array',
+        ['startDate' => 'string', 'endDate' => 'string']],
     [Client::class, 'eventBooking', false, 'array', ['id' => 'int']],
     [Client::class, 'createCompany', false, 'array', ['fields' => 'array']],
     [Client::class, 'updateCompany', false, 'array', ['id' => 'int', 'fields' => 'array']],

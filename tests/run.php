@@ -916,4 +916,87 @@ test('P6.1 : 401 GET reconnecte une seule fois sans ecriture metier', function (
     ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Appels de reconnexion incorrects');
 });
 
+
+test('P6.1 : liste des bookings dans une periode renvoie un tableau brut', function (): void {
+    $entries = [
+        ['id' => 42, 'entity' => 'event', 'title' => 'Exemple fictif',
+            'operation_period' => ['start' => '2026-11-14', 'end' => '2026-11-15'],
+            'has_materials' => true],
+        ['id' => 43, 'entity' => 'event', 'title' => 'Autre exemple', 'has_materials' => false],
+    ];
+    $f = login(new FakeTransport())->queue(
+        'GET', '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27',
+        200, $entries,
+    );
+    $out = client($f)->bookingsInPeriod('2026-11-12', '2026-11-27');
+    ensure($out === $entries, 'Liste en periode modifiee');
+    ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Requete de periode inattendue');
+});
+
+test('P6.1 : periode vide accepte une liste JSON vide', function (): void {
+    $f = login(new FakeTransport())->queue(
+        'GET', '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27',
+        200, [],
+    );
+    ensure(client($f)->bookingsInPeriod('2026-11-12', '2026-11-27') === [],
+        'Periode vide rejetee');
+});
+
+test('P6.1 : periode refuse dates invalides avant reseau', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        ['2026-02-30', '2026-03-01'], ['2026-13-01', '2026-12-01'],
+        ['2026-01-02', '2026-01-01'], ['2026-1-01', '2026-01-05'],
+        ['2026-01-01', '2026-01-05T00:00:00'], ['', '2026-01-01'],
+    ] as [$startDate, $endDate]) {
+        try {
+            $c->bookingsInPeriod($startDate, $endDate);
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Date de periode invalide acceptee');
+    }
+    ensure($f->calls === [], 'Appel HTTP malgre des dates invalides');
+});
+
+test('P6.1 : periode rejette objet et entrees incorrectes', function (): void {
+    foreach ([
+        ['data' => []],
+        [['bad-list']],
+        [42],
+        ['id' => 42],
+    ] as $body) {
+        $f = login(new FakeTransport())->queue(
+            'GET', '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27',
+            200, $body,
+        );
+        try {
+            client($f)->bookingsInPeriod('2026-11-12', '2026-11-27');
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2 && $f->remaining() === 0,
+                'Nouvelle requete apres erreur de format');
+            continue;
+        }
+        throw new RuntimeException('Liste de periode mal formee acceptee');
+    }
+});
+
+test('P6.1 : periode reconnecte une fois apres 401 sans ecriture metier', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-12&period%5Bend%5D=2026-11-27';
+    $f = login(new FakeTransport())
+        ->queue('GET', $path, 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'JWT2'])
+        ->queue('GET', $path, 200, [['id' => 42, 'entity' => 'event']]);
+    ensure(client($f)->bookingsInPeriod('2026-11-12', '2026-11-27')[0]['id'] === 42,
+        'Reconnexion des bookings de periode incorrecte');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET'
+            || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Modification non autorisee sur la periode');
+    }
+    ensure(count($f->calls) === 4 && $f->remaining() === 0,
+        'Reconnexion periodique incomplete');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

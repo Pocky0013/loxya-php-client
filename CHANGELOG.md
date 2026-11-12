@@ -6,10 +6,10 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ### En test — candidat P6.1 (non publié)
 
-- Méthodes de lecture proposées : `eventSuggestions()`, `event()`, `bookings()` et `eventBooking()`.
+- Méthodes de lecture proposées : `eventSuggestions()`, `event()`, `bookings()`, `bookingsInPeriod()` et `eventBooking()`.
 - Contrats séparés pour la recherche courte d'événements (`count` + `data`) et les bookings paginés (`data` + `pagination`).
 - Ajout de tests simulés et contrôle des nouvelles signatures PHP.
-- **Aucune validation des routes nouvelles sur le SaaS ; aucune écriture.** Fonctionnalités non destinées au tag `v0.1.0`.
+- **Observation SaaS partielle, en lecture seule :** listes par période et matériel affecté dans une fiche détaillée. Autres routes et permissions à valider ; aucune écriture. Fonctionnalités non destinées au tag `v0.1.0`.
 
 ## [0.1.0] - 2026-11-12
 

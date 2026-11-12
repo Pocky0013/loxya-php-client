@@ -1,6 +1,6 @@
 # P6.1 — Contrat candidat de lecture des événements et bookings
 
-**Statut : En test, uniquement en branche brouillon. Aucun appel SaaS effectué et aucune nouvelle route déclarée validée.**  
+**Statut : En test, uniquement en branche brouillon.** Une capture réseau SaaS fournie par un utilisateur autorisé confirme sur **une instance** les structures de `GET /api/events/{id}`, `GET /api/materials/while-event/{id}` et `GET /api/bookings?paginated=0`. Aucune requête active ni écriture sur le SaaS n'a été lancée pour cette validation.  
 **Paquet :** `electraudio/loxya-php-client`, SDK PHP réutilisable et indépendant.  
 **Source exploratoire :** code public [Loxya/Loxya, commit `2ce970474d8bd76e0f9da739c10fb33eb445e587`](https://github.com/Loxya/Loxya/tree/2ce970474d8bd76e0f9da739c10fb33eb445e587) (consulté le 12 novembre 2026).
 
@@ -14,6 +14,7 @@ Les informations ci-dessous sont **des observations de code source public**, pas
 | `event(int $id): array` | `GET /api/events/{id}` | JSON objet, représentation détaillée de l'événement |
 | `bookings(int $page = 1, int $limit = 30, ?string $search = null, bool $archived = false): array` | `GET /api/bookings` | `{data:list<objet>, pagination:objet}` ; filtre d'archives explicite |
 | `eventBooking(int $id): array` | `GET /api/bookings/event/{id}` | JSON objet, représentation « booking » d'un événement |
+| `bookingsInPeriod(string $startDate, string $endDate): array` | `GET /api/bookings?paginated=0&period[start]=…&period[end]=…` | Liste JSON à la racine, non paginée, dates ISO YYYY-MM-DD |
 
 **Toutes les méthodes sont en lecture seule.** Le POST `/api/session` sert uniquement à l'authentification JWT déjà présente. Aucune route de création, modification, suppression ou archivage n'est ajoutée.
 
@@ -53,6 +54,25 @@ Les paramètres `page` et `limit` sont des entiers ; `page >= 1`, `1 <= limit <=
 
 Une page hors plage peut renvoyer une erreur HTTP de type **416** dans la version du contrôleur examinée ; c'est à vérifier sur le SaaS. La bibliothèque préserve les valeurs du JSON brut et ne crée aucun modèle de réservation, ni rapprochement métier.
 
+### Lecture des événements sur une période : `/bookings?paginated=0`
+
+Dans la capture réseau fournie, Loxya a utilisé `GET /api/bookings` avec `paginated=0`, `period[start]` et `period[end]`. La réponse HTTP 200 est une **liste JSON à la racine**, contrairement à la réponse `{data, pagination}` du mode paginé.
+
+Chaque événement peut inclure `id`, `title`, `entity`, `operation_period`, `mobilization_period` et `has_materials`. Il s'agit de **résumés**, sans les lignes de matériel réservé. Une réponse vide `[]` est admise.
+
+Exemple fictif :
+
+```json
+[
+  {"id": 42, "entity": "event", "title": "Événement fictif",
+   "has_materials": true, "operation_period": {"start": "2027-01-12", "end": "2027-01-13"}}
+]
+```
+
+La méthode `bookingsInPeriod($startDate, $endDate)` valide deux dates strictes `YYYY-MM-DD` non inversées, puis encode les paramètres de période. Le décodeur HTTP interne accepte ici **uniquement** un tableau racine et exige des éléments objets. Les autres méthodes conservent leur exigence d'un objet racine. Un seul rejeu GET après 401 reste possible.
+
+La liste ne contient pas `materials` : pour retrouver les références et quantités réservées, appeler ensuite `event($id)`. **Ce schéma a été observé sur une instance, sans garantir la compatibilité universelle des versions SaaS.**
+
 ### Détails
 
 Les routes `/events/{id}` et `/bookings/event/{id}` représentent des vues distinctes. L'identifiant doit être entier et strictement positif ; le SDK ne mélange pas leurs champs et ne déduit aucun autre type de booking. Le segment `event` est fondé sur `Event::TYPE = 'event'` dans le code public examiné, non sur une énumération arbitraire saisie par l'appelant.
@@ -91,7 +111,7 @@ Après confirmation de l'autorisation de lecture des routes concernées, ouvrir 
 
 ## Tests déjà simulés
 
-La CI vérifie sans réseau : la forme des listes, les compteurs différents de la longueur de `data`, la préservation des champs non reconnus, les recherches encodées, les pages vides, les limites et IDs incorrects, les erreurs de protocole, les routes de détail et un unique rejeu GET après 401. Le contrôle `composer api-check` inclut les signatures proposées.
+La CI vérifie sans réseau : les listes paginées et par période, les validations de dates, la forme des listes, les compteurs différents de la longueur de `data`, la préservation des champs non reconnus, les recherches encodées, les pages vides, les limites et IDs incorrects, les erreurs de protocole, les routes de détail et un unique rejeu GET après 401. Le contrôle `composer api-check` inclut les signatures proposées.
 
 La CI **ne prouve pas** qu'une route est accessible en SaaS et ne contient aucun identifiant réel. Les exceptions HTTP ne contiennent pas de corps de réponse distant. Les accès POST/PUT aux événements et bookings ne sont pas disponibles.
 
@@ -100,6 +120,7 @@ La CI **ne prouve pas** qu'une route est accessible en SaaS et ne contient aucun
 - [ ] Le tag `v0.1.0` pointe vers le commit de publication approuvé, **sans les ajouts P6.1**.
 - [ ] Le périmètre d'accès aux nouvelles routes HTTP internes sur le SaaS est explicitement confirmé avec l'éditeur ou dans l'autorisation applicable.
 - [ ] Une recette **de lecture seulement** sur instance autorisée confirme les méthodes et chemins, les droits, la structure de `count`/`data` et de `pagination`, et les erreurs 401/403/404/416.
+- [x] Une capture réseau autorisée confirme les types de la liste `bookings` non paginée d'une période, et les lignes `materials` de la fiche `events/{id}` sur une instance.
 - [ ] Vérifier le tableau `materials` et les types des quantités sur un événement contenant réellement du matériel, sans partager ses valeurs.
 - [ ] Les limites réelles et éventuelles différences avec le code public sont reportées dans la documentation, puis les signatures corrigées si nécessaire.
 - [ ] Aucun nom, identifiant réel, jeton, adresse ou donnée personnelle n'est conservé dans les tests ou issues.
