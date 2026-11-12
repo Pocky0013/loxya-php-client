@@ -38,6 +38,12 @@ Ne qualifier une fonctionnalité de **Validé** que si elle est implémentée, t
 
 Les identifiants Loxya restent uniquement dans la configuration de l'application appelante. Ne jamais déposer de secrets, de JWT, de données personnelles réelles ou de captures de réponses privées.
 
+## Versions du SDK
+
+La première version envisagée est `v0.1.0`, **non publiée**. Toute PR touchant une signature publique, une exception, une contrainte de plateforme ou la compatibilité doit mettre à jour [CHANGELOG.md](CHANGELOG.md) et le contrôle `composer api-check`. Les règles et le processus sont décrits dans [docs/VERSIONING.md](docs/VERSIONING.md) et [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md).
+
+Une CI réussie n'est pas une validation de l'instance SaaS. Toute publication (tag Git, GitHub Release ou Packagist) exige une approbation distincte.
+
 ## Recette SaaS contrôlée
 
 Les tests automatisés ne doivent jamais utiliser d'identifiants SaaS. La [procédure générique](docs/RECETTE-SAAS.md) et le diagnostic `php bin/loxya-read-check.php --check` permettent une vérification de lecture sur une instance autorisée, sans exposer les valeurs sources. Les écritures de test exigent une autorisation explicite distincte, sur des fiches fictives.
