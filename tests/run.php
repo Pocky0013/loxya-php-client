@@ -492,7 +492,7 @@ if (extension_loaded('curl')) {
 }
 
 
-/** Charge uniquement les fixtures publiques et entierement fictives du contrat. */
+/** Charge uniquement des jeux de donnees entierement fictifs. */
 function contactFixture(string $name): array
 {
     if (!preg_match('/^[a-z-]+$/D', $name)) {
@@ -509,7 +509,7 @@ function contactFixture(string $name): array
     return $value;
 }
 
-test('Contrat P2 : listes sources brutes et pagination preservees', function (): void {
+test('Contrat de lecture : listes sources brutes et pagination preservees', function (): void {
     $companies = contactFixture('companies-page');
     $beneficiaries = contactFixture('beneficiaries-page');
     $f = login(new FakeTransport())
@@ -521,7 +521,7 @@ test('Contrat P2 : listes sources brutes et pagination preservees', function ():
     ensure($f->remaining() === 0, 'Appels manquants');
 });
 
-test('Contrat P2 : meme ID numerique pour deux types de fiches distinctes', function (): void {
+test('Contrat de lecture : meme ID numerique pour deux types de fiches distinctes', function (): void {
     $company = contactFixture('company-detail');
     $beneficiary = contactFixture('beneficiary-detail');
     ensure($company['id'] === $beneficiary['id'], 'Exemple non collisionnel');
@@ -534,7 +534,7 @@ test('Contrat P2 : meme ID numerique pour deux types de fiches distinctes', func
     ensure($f->remaining() === 0, 'Routes confondues');
 });
 
-test('Contrat P2 : company_id entier, null et absent restent differents', function (): void {
+test('Contrat de lecture : company_id entier, null et absent restent differents', function (): void {
     $f = login(new FakeTransport())
         ->queue('GET', '/beneficiaries?page=1&limit=30', 200, contactFixture('beneficiaries-page'));
     $data = client($f)->beneficiaries()['data'];
@@ -545,14 +545,14 @@ test('Contrat P2 : company_id entier, null et absent restent differents', functi
     ensure(!array_key_exists('last_name', $data[2]), 'Nom manquant complete artificiellement');
 });
 
-test('Contrat P2 : champs supplementaires du serveur conserves sans transformation', function (): void {
+test('Contrat de lecture : champs supplementaires du serveur conserves sans transformation', function (): void {
     $company = contactFixture('company-detail');
     $company['extension_future_fictive'] = ['variable' => 123, 'active' => false];
     $f = login(new FakeTransport())->queue('GET', '/companies/42', 200, $company);
     ensure(client($f)->company(42) === $company, 'Champ inconnu perdu ou reinterprete');
 });
 
-test('Contrat P2 : pagination et recherche ne reconstruisent pas la reponse', function (): void {
+test('Contrat de lecture : pagination et recherche ne reconstruisent pas la reponse', function (): void {
     $page = ['data' => [], 'pagination' => ['currentPage' => 5, 'total' => ['items' => 2, 'pages' => 1],
         'metadata_fictive' => 'preserved']];
     $f = login(new FakeTransport())

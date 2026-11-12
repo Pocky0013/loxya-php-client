@@ -1,6 +1,6 @@
 {
   "name": "electraudio/loxya-php-client",
-  "description": "Client PHP non officiel pour les contacts de Loxya",
+  "description": "Client PHP non officiel pour les routes HTTP internes de Loxya",
   "type": "library",
   "license": "proprietary",
   "keywords": ["loxya", "php", "api", "contacts"],

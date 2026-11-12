@@ -1,139 +1,116 @@
-# Contrat de lecture des contacts Loxya (P2)
+# Contrat technique de lecture — sociétés et bénéficiaires
 
-**Statut :** contrat PHP actuel documenté, en attente de recette fonctionnelle complémentaire sur le SaaS.  
-**Périmètre :** paquet `electraudio/loxya-php-client`, sociétés et bénéficiaires, lecture seule.  
-**Date :** 12 novembre 2026. Les routes HTTP sont internes, non officielles et susceptibles d'évoluer.
+**Statut :** contrat de la bibliothèque PHP, vérifié par des tests simulés.  
+**Version :** état du client en novembre 2026 ; validation du comportement SaaS encore partielle.  
+**Portée :** routes HTTP internes Loxya non officielles et non versionnées. Aucune garantie de stabilité par l'éditeur.
 
-Ce document décrit **ce que la bibliothèque fournit réellement à une application consommatrice**, sans imposer de modèle de référentiel, de tables SQL, de logique de rapprochement ou de synchronisation. Il ne constitue pas un contrat de stabilité garanti par l'éditeur.
+Cette documentation décrit l'interface **PHP générique** du paquet `electraudio/loxya-php-client`. Elle ne prescrit aucun modèle de données, système de stockage ou mécanisme de synchronisation pour les applications consommatrices.
 
-## 1. Interface PHP publique existante
+## 1. Méthodes publiques de lecture
 
-| Appel | Résultat |
-|---|---|
-| `Client::companies(int $page = 1, int $limit = 30, ?string $search = null): array` | Liste de sociétés : `data` + `pagination` |
-| `Client::company(int $id): array` | Fiche société brute |
-| `Client::beneficiaries(int $page = 1, int $limit = 30, ?string $search = null): array` | Liste de bénéficiaires : `data` + `pagination` |
-| `Client::beneficiary(int $id): array` | Fiche bénéficiaire brute |
+| Méthode | Route Loxya | Retour |
+|---|---|---|
+| `companies(int $page = 1, int $limit = 30, ?string $search = null): array` | `GET /api/companies` | `data` et `pagination` |
+| `company(int $id): array` | `GET /api/companies/{id}` | Fiche société brute |
+| `beneficiaries(int $page = 1, int $limit = 30, ?string $search = null): array` | `GET /api/beneficiaries` | `data` et `pagination` |
+| `beneficiary(int $id): array` | `GET /api/beneficiaries/{id}` | Fiche bénéficiaire brute |
 
-Ces quatre méthodes ne transforment **ni les champs ni leurs valeurs** : elles rendent des tableaux PHP issus du JSON retourné par Loxya. Les champs inconnus restent présents. Aucun champ d'identité centrale, d'origine Bexio, de statut de rapprochement ou de synchronisation n'est ajouté.
+Les méthodes sont accessibles sur `Electraudio\Loxya\Client`, obtenu par `Factory::fromEnvironment()` ou `Factory::fromArray($config)`.
 
-Paramètres : `page >= 1`, `1 <= limit <= 100` ; `search` facultatif, entre 2 et 180 caractères Unicode s'il n'est pas vide. La bibliothèque encode la recherche dans l'URL mais ne définit **pas** la sémantique du moteur de recherche Loxya.
+La validation locale exige `page >= 1`, `1 <= limit <= 100`, un `id > 0` et, si elle est renseignée, une recherche de 2 à 180 caractères Unicode. La recherche est encodée dans l'URL, **sans garantie sur les règles de recherche appliquées par Loxya**.
 
-## 2. Format des résultats et validation effective
+## 2. Données renvoyées
 
-**Listes :**
+Les méthodes renvoient les **tableaux PHP issus du JSON Loxya sans normalisation des champs**. Les champs supplémentaires restent présents, les champs absents ne sont pas créés et les valeurs `null` ne deviennent pas des chaînes vides.
+
+Une réponse de liste comporte :
 
 ```php
 [
-    'data' => [/* liste de tableaux associatifs de contacts */],
-    'pagination' => [/* métadonnées du serveur, non transformées */],
+    'data' => [/* liste de fiches (tableaux associatifs) */],
+    'pagination' => [/* metadonnees du serveur */],
 ]
 ```
 
-La bibliothèque exige `data` comme **liste** de tableaux associatifs et `pagination` comme **tableau** ; elle accepte une liste vide. Elle ne valide pas les clés internes de `pagination` et ne calcule pas un total ou un nombre de pages. Sur les premières réponses observées dans les tests d'intégration, les clés `currentPage` et `total.items` / `total.pages` ont été utilisées ; elles **ne doivent pas être considérées comme garanties** par le client.
+Le client exige que `data` soit une liste de tableaux associatifs et que `pagination` soit un tableau. **Il ne valide pas la structure interne de `pagination`** et ne recalcule pas les totaux. Une liste vide est autorisée.
 
-**Fiches individuelles :** un tableau associatif `array<string, mixed>` ; le client vérifie que la réponse HTTP est JSON et que son niveau racine est un objet décodable en tableau associatif non vide. Il ne garantit pas la présence d'un `id` ou des coordonnées d'une fiche lue. Une application qui crée un lien durable doit vérifier ces champs elle-même.
-
-**Exemple entièrement fictif**, représentatif des formes utilisées par les tests, et non un extrait de données du SaaS :
+Exemple **entièrement fictif**, utilisé comme forme illustrative dans les tests :
 
 ```json
 {
   "data": [
-    {"id": 42, "legal_name": "Exemple SA", "country": "CH"},
-    {"id": 55, "legal_name": "Association fictive", "country": "CH", "phone": null}
+    {"id": 42, "legal_name": "Entreprise exemple", "country": "CH"},
+    {"id": 55, "legal_name": "Association fictive", "phone": null}
   ],
   "pagination": {"currentPage": 1, "total": {"items": 2, "pages": 1}}
 }
 ```
 
-Les réponses brutes peuvent contenir d'autres champs, des champs `null` ou des champs absents. Ne pas confondre **absent**, **présent avec `null`** et **présent avec une chaîne vide**. Le client ne complète pas ces différences.
+Les clés `currentPage`, `total.items` et `total.pages` apparaissent dans les exemples connus, mais leur présence **n'est pas garantie par la validation du SDK**. Le programme appelant doit vérifier les clés utilisées.
 
-## 3. Inventaire des champs connus
+Les méthodes de détail renvoient un tableau associatif pour une réponse JSON de type objet non vide. Elles ne garantissent pas que chaque fiche contienne `id`, `legal_name`, `first_name` ou des coordonnées. Une réponse JSON vide ou mal formée provoque une `ProtocolException`.
 
-**Attention :** la liste ci-dessous provient des noms acceptés dans les méthodes d'écriture du client et des premiers essais décrits dans le projet. Ce n'est **pas un schéma des réponses GET certifié par le SaaS**. La présence, le type précis et la possibilité de valeurs nulles de chaque champ restent à confirmer par une recette de lecture réelle, sans exporter de données personnelles.
+## 3. Noms de champs connus et limites
 
-| Famille | Champs connus |
+Ces noms proviennent **des champs actuellement acceptés en écriture par le client** et des premiers essais. Ils ne constituent pas une description exhaustive ni un schéma de lecture GET certifié par l'éditeur.
+
+| Type | Champs connus |
 |---|---|
-| Identifiant source | `id` (à vérifier sur chaque fiche, entier strictement positif souhaité pour un lien durable) |
-| Société | `legal_name`, `is_public_entity`, `registration_id`, `vat_number`, `invoice_identifier`, `service_code` |
-| Bénéficiaire | `first_name`, `last_name`, `email`, `reference`, `company_id` |
-| Coordonnées communes possibles | `phone`, `street`, `additional_street`, `postal_code`, `administrative_area`, `locality`, `country`, `note` |
+| Identifiant | `id` |
+| Sociétés | `legal_name`, `is_public_entity`, `registration_id`, `vat_number`, `invoice_identifier`, `service_code` |
+| Bénéficiaires | `first_name`, `last_name`, `email`, `reference`, `company_id` |
+| Coordonnées et remarques | `phone`, `street`, `additional_street`, `postal_code`, `administrative_area`, `locality`, `country`, `note` |
 
-Un `email` de société, un rôle de personne, des dates `created_at` / `updated_at`, un indicateur d'archivage ou un objet de société imbriqué ne sont **pas** des champs garantis par ce contrat. Ne pas les déduire des champs de Bexio ou du référentiel.
+La **présence**, le **type** et la **nullabilité** de chaque champ sont à vérifier sur l'instance Loxya ciblée. Aucun champ comme `created_at`, `updated_at`, `archived`, un e-mail de société ou un objet société imbriqué n'est garanti par ce document.
 
-Pour présenter ou rapprocher une fiche : considérer chaque valeur comme **non fiable et facultative** avant validation locale. Conserver la valeur source brute si une copie est nécessaire ; les règles d'affichage, de formatage des numéros, d'adresses et de dédoublonnage appartiennent à l'application.
+## 4. Identifiants et relation native
 
-## 4. Identité, espaces d'ID et relations
+Les ID numériques des sociétés et des bénéficiaires forment **deux espaces distincts** : `companies/42` et `beneficiaries/42` désignent deux ressources différentes.
 
-Les routes `companies` et `beneficiaries` forment **deux espaces d'identifiants différents**. Le nombre `42` dans les deux collections ne désigne pas une même fiche. Pour toute référence durable, utiliser au minimum :
+Lorsqu'une application souhaite conserver une référence externe, une clé sans ambiguïté peut comprendre **l'instance Loxya**, le **type de ressource** (`companies` ou `beneficiaries`) et l'**ID** ; cette composition relève de l'application, pas du SDK. Le client ne génère aucune identité universelle.
 
-```text
-(instance Loxya configurée, type source: companies | beneficiaries, ID source)
-```
+Sur un bénéficiaire, `company_id` désigne, lorsqu'il est présent et valide, l'ID d'une société Loxya. Distinguer :
 
-Si une seule instance Loxya est exploitée, le couple `(type, id)` peut suffire dans le périmètre de cette instance. L'ID seul est insuffisant. Aucune clé synthétique ni clé du référentiel n'est créée par la bibliothèque.
+- `company_id` entier strictement positif : lien possible vers `company($id)` (à confirmer au besoin par relecture) ;
+- `company_id: null` : relation explicitement absente dans la réponse ;
+- clé `company_id` absente ou d'un type inattendu : **état non déterminé**, et non une preuve de dissociation.
 
-La relation connue est `company_id` **sur la fiche bénéficiaire** :
-
-- entier positif : identifiant dans l'espace `companies` (à valider par lecture ciblée avant d'afficher un lien) ;
-- `null` : absence de société liée dans la réponse ;
-- champ absent, type invalide ou ambigu : **relation inconnue**, ne pas interpréter comme une dissociation.
-
-Une relation Loxya ne prouve pas une identité commune avec une fiche Bexio. Ne pas utiliser `company_id` comme identifiant de bénéficiaire, ni le numéro d'une fiche Bexio comme ID Loxya. La bibliothèque ne propose pas de liste inverse des bénéficiaires d'une société.
-
-**Exemple de lecture sans écriture :**
+Le SDK laisse ces valeurs brutes inchangées. Il ne propose pas de recherche inverse des bénéficiaires d'une société et ne déduit aucun lien avec des systèmes tiers.
 
 ```php
-$companies = $client->companies(page: 1, limit: 30);
-$beneficiary = $client->beneficiary(42);
-
-if (array_key_exists('company_id', $beneficiary)) {
-    $companyId = $beneficiary['company_id'];
-    // Valider un entier positif ou null avant utilisation.
-    // La décision de lier deux identités relève du portail.
+$client = \Electraudio\Loxya\Factory::fromEnvironment();
+$person = $client->beneficiary(42); // Exemple fictif.
+if (array_key_exists('company_id', $person) && is_int($person['company_id']) && $person['company_id'] > 0) {
+    $company = $client->company($person['company_id']);
 }
 ```
 
-## 5. Pagination et rapprochement côté application
+## 5. Exceptions et gestion des erreurs
 
-L'application consommatrice doit :
-
-1. préserver la provenance `(instance, type, id)` et vérifier l'ID avant toute liaison persistante ;
-2. valider localement les métadonnées `pagination` dont elle dépend, plutôt que de les supposer toujours présentes ;
-3. utiliser les méthodes de détail pour relire une fiche ciblée lorsque sa relation est nécessaire ;
-4. traiter les coordonnées manquantes et les homonymes comme des situations à examiner, **jamais** comme une correspondance automatique ;
-5. décider elle-même des droits, de la copie locale, des propositions de rapprochement, des confirmations et de l'audit.
-
-Ce contrat n'implique **aucun balayage planifié**, aucun import automatique, aucune écriture distante et aucun transfert d'information entre Bexio et Loxya.
-
-## 6. Erreurs et limites de sécurité
-
-| Situation | Comportement client |
+| Situation | Résultat |
 |---|---|
-| Paramètre invalide (pagination, ID, recherche) | `InvalidArgumentException` avant l'appel distant |
-| HTTP 401 sur GET | Nouvelle authentification puis **un seul** rejeu du GET |
-| HTTP 401/403/404/429/5xx final | `HttpException` avec statut, méthode et chemin sans paramètres de recherche |
-| Réponse non JSON / racine inattendue / liste mal formée | `ProtocolException` |
-| Échec de transport HTTPS | `TransportException` |
+| Paramètre local invalide | `InvalidArgumentException` avant l'appel HTTP |
+| HTTP 401 sur GET | Reconnexion et **un seul** nouvel essai GET |
+| Autre erreur HTTP, ou second 401 | `HttpException` exposant statut, méthode et chemin (sans recherche) |
+| Réponse JSON/structure de liste invalide | `ProtocolException` |
+| Erreur cURL ou de transport | `TransportException` |
 
-Les messages d'erreur ne reprennent pas les corps HTTP distants. Ne jamais journaliser les réponses brutes avec données personnelles ou les en-têtes d'authentification. Le client ne garantit aucune stabilité des routes internes et ne rejoue **jamais** automatiquement les écritures POST/PUT.
+Le client n'expose pas le corps des réponses HTTP erronées dans ses exceptions. Les opérations POST/PUT **ne sont jamais rejouées automatiquement**, car une erreur de réseau après envoi rend leur résultat potentiellement ambigu. Les écritures actuellement implémentées sont documentées dans le README ; elles sont distinctes du présent contrat de lecture.
 
-## 7. État de validation et recette à effectuer
+## 6. Validations et recette non destructive
 
-**Vérifié dans le code et la CI :** routes et signatures ci-dessus, conservation de l'intégralité des valeurs JSON de réponse, contrôles des listes, distinctions des espaces d'ID, cas de `company_id` présent/null/absent, erreurs simulées, PHP 8.2/8.4/8.5.
+**Automatisé :** les tests du dépôt utilisent un transport simulé et des fixtures synthétiques, indépendants du SaaS ; la CI exécute le lint et les tests sous PHP 8.2, 8.4 et 8.5. Ils vérifient notamment les listes, la conservation des champs inconnus, le traitement des valeurs absentes et `null`, les collisions d'ID entre types et les erreurs de protocole.
 
-**Confirmé antérieurement sur l'instance Electraudio :** authentification, lecture des listes et des fiches, opérations fictives de POC ; diagnostic DEV en lecture seule ayant affiché 42 sociétés et 86 bénéficiaires. Ces chiffres sont une observation datée, pas une garantie sur la population actuelle.
+**Observé manuellement lors du POC initial :** authentification, lecture et quelques opérations sur des fiches fictives. Ces observations ne démontrent pas la compatibilité avec toutes les versions de Loxya.
 
-**Non encore confirmé de manière systématique :** présence et types de chacun des champs sur des fiches variées, structure exacte des métadonnées de pagination aux limites, recherche sur caractères accentués, relation sur fiches incomplètes, droits et formats selon les versions SaaS.
+**À confirmer sur toute instance autorisée, en lecture seule :**
 
-### Protocole de recette manuelle (lecture seule, portail DEV)
+1. Examiner la structure et les types des réponses de sociétés et de bénéficiaires (liste et détail).
+2. Vérifier une page vide, une page hors plage et les valeurs de `pagination` utilisées.
+3. Tester la recherche, notamment sur une chaîne accentuée, sans conserver de valeurs personnelles dans les journaux.
+4. Examiner un bénéficiaire lié, non lié ou avec coordonnées manquantes ; vérifier les formats de `company_id`.
+5. Vérifier la réponse à un ID inexistant (404), sans modifier de droits ni créer de fiches.
 
-- Exécuter le diagnostic existant `php scripts/contacts/loxya-check.php --check` sans enregistrer de données personnelles.
-- Consulter une page de chaque type, puis une page vide / hors plage si possible ; vérifier l'absence de changement de format.
-- Vérifier recherche et pagination avec quelques termes non sensibles, sans recopier les résultats.
-- Contrôler à l'écran un bénéficiaire avec société, un bénéficiaire sans société et des fiches avec coordonnées absentes ; noter **uniquement** présence, types et nullabilité des champs, sans valeurs réelles.
-- Pour un cas de fiche inexistante, vérifier le traitement 404 par l'interface, sans créer de donnée.
-- Si un accès insuffisant existe déjà, vérifier l'affichage 403 ; **ne pas modifier des droits en production pour provoquer cette erreur**.
-- Si un écart de format est observé, ouvrir un correctif ciblé dans la bibliothèque avant d'élargir l'intégration du portail.
+Ne publier ni identifiants, ni JWT, ni réponses nominatives dans les issues, tests ou documentations. **Les exemples et fixtures ne sont pas des captures du SaaS.**
 
-Les fixtures sous `tests/fixtures/` sont **synthétiques** et ne prouvent pas à elles seules la forme du JSON réellement renvoyé par le SaaS.
+Pour des règles de contribution et l'ajout futur de ressources vérifiées, voir [CONTRIBUTING.md](../CONTRIBUTING.md).

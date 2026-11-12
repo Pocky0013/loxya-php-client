@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Electraudio\Loxya;
 
-/** Client des contacts Loxya. Les POST et PUT ne sont jamais rejoues automatiquement. */
+/** Client PHP des routes Loxya verifiees. Les POST et PUT ne sont jamais rejoues automatiquement. */
 final class Client
 {
     private ?string $token = null;
@@ -29,7 +29,7 @@ final class Client
 
     /**
      * Liste paginee ; la recherche est facultative.
-     * @return array{data:list<array<string,mixed>>,pagination:array<string,mixed>}
+     * @return array{data:list<array<string,mixed>>,pagination:array<array-key,mixed>}
      */
     public function beneficiaries(int $page = 1, int $limit = 30, ?string $search = null): array
     {
@@ -59,7 +59,7 @@ final class Client
         return $this->beneficiary($id);
     }
 
-    /** @return array{data:list<array<string,mixed>>,pagination:array<string,mixed>} */
+    /** @return array{data:list<array<string,mixed>>,pagination:array<array-key,mixed>} */
     public function companies(int $page = 1, int $limit = 30, ?string $search = null): array
     {
         return $this->getListing('/companies', $page, $limit, $search);
