@@ -43,3 +43,5 @@ jobs:
           bash -n scripts/release-check.sh
           bash -n tests/release-workflow.sh
           bash tests/release-workflow.sh
+      - name: Verifier la syntaxe YAML du workflow de publication
+        run: ruby -ryaml -e 'YAML.parse_file(".github/workflows/publish-release.yml")'
