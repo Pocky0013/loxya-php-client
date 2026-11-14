@@ -25,7 +25,7 @@ Les versions 0.x restent expérimentales, mais **les changements incompatibles s
 - `Transport::send()`, `CurlTransport`, `HttpResponse`.
 - `LoxyaException`, `HttpException`, `ProtocolException`, `TransportException` et `WriteNotConfirmedException`.
 
-Les méthodes `bookingsInPeriod()` et `event()` ajoutées à `main` dans P6.1 constituent le **périmètre candidat de `v0.2.0`** ; elles ne sont pas disponibles dans le tag `v0.1.0`.
+Les méthodes `bookingsInPeriod()` et `event()` ajoutées à `main` dans P6.1, ainsi que la méthode candidate `material(int $id)` (P6.2), constituent le **périmètre en préparation de `v0.2.0`** ; elles ne sont pas disponibles dans le tag `v0.1.0`. L'ajout de `material()` est compatible avec les signatures précédentes ; son déploiement SaaS reste à tester.
 
 Le contrôle hors réseau `composer api-check` surveille les noms, paramètres (y compris ceux utilisables en arguments nommés), types, valeurs par défaut, types de retour et certaines propriétés des exceptions.
 
