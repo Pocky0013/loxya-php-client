@@ -8,6 +8,16 @@
 - Vérifier la version du SDK déjà présente dans le `composer.lock` de l'application. Une mise à jour vers un commit `dev-main` doit être **volontaire, testée et versionnée dans le dépôt de l'application**. Ne pas changer les dépendances directement sur le serveur de production.
 - Vérifier que la configuration `LOXYA_BASE_URL`, `LOXYA_USERNAME` et `LOXYA_PASSWORD` est déjà chargée par l'application. Ne pas recopier ces valeurs dans un ticket GitHub ni dans des exemples.
 
+### Diagnostic automatisé facultatif sur une version de développement du SDK
+
+Après mise à disposition de la PR du diagnostic P6 dans la version installée, et **uniquement avec un compte SaaS autorisé**, il est possible de contrôler un échantillon anonymisé sans recopier les réponses :
+
+```sh
+php bin/loxya-read-check.php --check-p6 2026-11-14 2026-11-16
+```
+
+La période doit couvrir au maximum 7 jours civils. La commande lit une liste de bookings, puis au plus un événement et un matériel. Les prix sont représentés par leur **type** et non leur montant. Elle ne remplace pas la recette métier manuelle complète ci-dessous. La recette de novembre 2026 ne valait **pas** exécution de cette nouvelle commande ; elle reste **En test**.
+
 ## 2. Parcours en lecture seule
 
 1. Sélectionner une période courte contenant au moins un événement connu.
