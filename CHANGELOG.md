@@ -4,18 +4,22 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ## [Unreleased]
 
-### En préparation — `v0.2.0` (non publiée)
+## [0.2.0] - 2026-11-14
+
+**Notes du candidat de publication ; le tag Git et la GitHub Release doivent être vérifiés indépendamment.**
 
 - P6.2 : `material(int $id)` lit une fiche du catalogue via `GET /api/materials/{id}`, sans modification des données reçues.
 - P6.2 : documentation de `materials[*].material.rental_price` dans les événements et de `rental_price` / `replacement_price` sur les fiches catalogue. Aucun calcul de prix d'événement, de remise ou de dégressivité.
-- P6.2 : tests simulés pour prix absent/nul, distinction catalogue/facturation, identifiants, 401, 403/404, formats invalides et signature publique ; confirmation SaaS encore nécessaire.
+- P6.2 : tests simulés pour prix absent/nul, distinction catalogue/facturation, identifiants, 401, 403/404, formats invalides et signature publique ; **recette SaaS réelle réussie sur l'instance Electraudio le 14 novembre 2026** pour les prix présents.
 
 - Lecture de la liste des bookings sur une période via `bookingsInPeriod(string $startDate, string $endDate)` : réponse JSON à la racine, non paginée.
 - Lecture de la fiche complète d'un événement avec `event(int $id)` : le tableau `materials` contient les références et quantités affectées.
 - Tests de transport simulé pour le parcours liste → détail → matériel, validation des dates, erreurs de lecture et compatibilité des signatures.
 - Contrat documenté à partir de deux routes observées dans des traces SaaS autorisées, sans conserver de données réelles dans Git.
+- P6.1 : validation SaaS réelle du parcours `bookingsInPeriod()` → `event()` → `materials` : 16 bookings, 8 détails, références et quantités des matériaux confirmées.
+- P6.2 : lecture de `material($id)` validée sur une fiche réelle, concordance des prix catalogue avec le matériel imbriqué d'un événement de 42 lignes ; prix de location observés en `string`, valeur de remplacement parfois `null`.
 
-**En test :** les méthodes P6.1 sont fusionnées dans `main` depuis la PR #9 ; la méthode P6.2 est candidate en PR. Aucune ne fait partie de `v0.1.0`. Les recherches globales, paginations et autres routes non confirmées restent hors de ce périmètre. Aucun appel HTTP d'écriture n'est ajouté. Le futur tag `v0.2.0` n'a pas été créé.
+**Portée de validation :** les fonctionnalités P6.1/P6.2 sont validées pour les parcours observés sur l'instance SaaS Electraudio, et restent en test sur d'autres environnements ainsi que pour les cas limites (prix absent, divergence de prix, `materials: []`, erreurs HTTP réelles). Aucun appel HTTP d'écriture métier n'est ajouté. `v0.1.0` ne contient pas P6. Le tag `v0.2.0` et la GitHub Release restent à vérifier avant de déclarer leur publication.
 
 ## [0.1.0] - 2026-11-12
 

@@ -1,6 +1,6 @@
 # Recette SaaS contrôlée — Loxya PHP Client
 
-**Statut : protocole et diagnostic préparés ; recette réelle à exécuter sur une instance autorisée.**  
+**Statut : protocole Contacts toujours ouvert ; recette réelle P6.1/P6.2 exécutée le 14 novembre 2026 sur une instance autorisée.**  
 **Portée :** client PHP indépendant `electraudio/loxya-php-client`, routes internes non officielles.  
 **Sécurité :** les tests automatiques n'effectuent **aucune connexion au SaaS**. Le diagnostic CLI n'utilise que des lectures, hormis `POST /api/session` pour l'authentification.
 
@@ -11,11 +11,18 @@ Ne pas assimiler une CI verte à une vérification des réponses d'une instance 
 | Niveau | Ce qu'il valide | État |
 |---|---|---|
 | Tests simulés | Signatures PHP, séquences HTTP, erreurs, formats fictifs et sécurité | Couvert par la CI |
-| Diagnostic SaaS non destructif | Session, listes, pages de détail et types des champs d'un échantillon | Outil disponible, exécution non attestée par cette PR |
-| Recette manuelle approfondie | Cas de pagination, recherche, fiches incomplètes, 401/403/404 et droits selon l'instance | À effectuer sur une instance autorisée |
+| Diagnostic SaaS non destructif — contacts | Session, listes, pages de détail et types des champs d'un échantillon | Outil générique disponible ; son exécution réelle n'est pas attestée par la recette P6 |
+| Recette réelle P6.1 / P6.2 | Événements, détails et matériel, prix catalogue et fiche de matériel | **Validé sur l'instance SaaS Electraudio pour les cas observés le 14 novembre 2026** |
+| Recette manuelle approfondie Contacts | Pagination, recherche, fiches incomplètes, 401/403/404 et droits selon l'instance | Non couverte par cette recette P6 |
 | Écritures contrôlées | Création, modification et relations sur fiches fictives | **Non exécuté** ; autorisation explicite distincte nécessaire |
 
 Les données réelles peuvent changer et les routes n'ont aucune garantie de compatibilité dans le temps. L'absence de problème sur une instance ne vaut pas certification universelle.
+
+### Recette P6 distincte du diagnostic Contacts
+
+Une application consommatrice (Portail Electraudio DEV) a exécuté, en SSH sur Infomaniak, le script de diagnostic spécifique `loxya-evenements-test.php` le **14 novembre 2026**, avec PHP CLI 8.4.27 et le SDK `5a0501b080c97420bfe0cb75c646dfa4dc33a31e` verrouillé via Composer. Ce script a observé 16 bookings, 8 détails d'événement, des listes de matériel et leurs quantités, puis le prix catalogue sur 42 lignes et la lecture directe d'une fiche via `material($id)`. Aucun changement de ressource Loxya n'a été envoyé. La CI SDK correspondante a été validée sur PHP 8.2, 8.4 et 8.5 ([run #43623390003](https://github.com/Pocky0013/loxya-php-client/actions/runs/43623390003)).
+
+**Cette recette P6 n'atteste pas l'exécution de `php bin/loxya-read-check.php --check`.** Cet outil générique reste centré sur les sociétés et bénéficiaires ; aucune validation des parcours Contacts (lecture, recherche, pagination, écriture, erreurs réelles) ne peut être déduite de la recette événements/matériel.
 
 ## 2. Préparation de l'environnement
 
@@ -86,9 +93,11 @@ Lors d'une future recette autorisée :
 - [x] Outil de lecture sans dépendance à une application particulière.
 - [x] CI sans identifiants, ni appels SaaS.
 - [x] Tests simulés sur sorties anonymes et cas vide/ID invalide.
-- [ ] Diagnostic `--check` exécuté sur une instance réelle autorisée et observations consignées.
-- [ ] Recette manuelle des cas limites de lecture documentée.
+- [x] Recette spécifique P6.1/P6.2 sur instance SaaS Electraudio effectuée sans écriture métier ; résultat et révision consignés.
+- [ ] Diagnostic générique Contacts `--check` exécuté sur une instance réelle autorisée et observations consignées : **non attesté par la recette P6**.
+- [ ] Recette manuelle des cas limites de lecture Contacts documentée : **non couverte par la recette P6**.
+- [ ] Cas limites P6 réels (`materials: []`, tarif absent / nul, tarifs divergents, HTTP 401/403/404, droits restrictifs) : **non vérifiés sur SaaS**.
 - [ ] Autorisation distincte obtenue avant **toute** écriture de test.
 - [ ] Tests d'écriture réels effectués après revue des protections P3, puis résultats anonymisés.
 
-Ne modifier les mentions **Validé / En test / En projet** du README qu'en fonction d'observations attestées. Ce chantier ne publie ni tag, ni package Packagist et ne modifie pas les droits d'une application consommatrice.
+Ne modifier les mentions **Validé / En test / En projet** du README qu'en fonction d'observations attestées. Ce protocole et sa mise à jour documentaire ne publient ni package Packagist ni changement d'application consommatrice. Le tag et la GitHub Release du SDK sont des opérations séparées dont l'état doit être contrôlé sur GitHub.
