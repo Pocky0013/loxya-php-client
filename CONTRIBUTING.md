@@ -40,9 +40,9 @@ Les identifiants Loxya restent uniquement dans la configuration de l'application
 
 ## Versions du SDK
 
-La première version envisagée est `v0.1.0`, **non publiée**. Toute PR touchant une signature publique, une exception, une contrainte de plateforme ou la compatibilité doit mettre à jour [CHANGELOG.md](CHANGELOG.md) et le contrôle `composer api-check`. Les règles et le processus sont décrits dans [docs/VERSIONING.md](docs/VERSIONING.md) et [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md).
+Les versions **`v0.1.0` et `v0.2.0` sont publiées en préversions expérimentales**. Toute PR touchant une signature publique, une exception, une contrainte de plateforme ou la compatibilité doit mettre à jour [CHANGELOG.md](CHANGELOG.md) et le contrôle `composer api-check`. Pour les prochaines versions, suivre [docs/PUBLICATION-GITHUB-ACTIONS.md](docs/PUBLICATION-GITHUB-ACTIONS.md) et [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md), en respectant la [politique de versionnement](docs/VERSIONING.md).
 
-Une CI réussie n'est pas une validation de l'instance SaaS. Toute publication (tag Git, GitHub Release ou Packagist) exige une approbation distincte.
+Une CI réussie n'est pas une validation de l'instance SaaS. La publication reste manuelle et exige une approbation distincte : le mode `verifier` de GitHub Actions ne publie rien et le mode `publier` crée le tag annoté et la GitHub Release. Packagist n'est pas publié automatiquement.
 
 ## Recette SaaS contrôlée
 
