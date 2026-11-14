@@ -1,6 +1,6 @@
 # Recette d'intégration P6.1 / P6.2 — événements, matériel et prix catalogue
 
-**Statut : protocole pour une application consommatrice en environnement de développement.** Pas d'accès en écriture ; `bookingsInPeriod()` et `event()` sont sur `main`. `material()` est en préparation dans P6.2. Aucune de ces méthodes n'est dans le tag `v0.1.0`.
+**Statut : P6.1 et P6.2 validés sur l'instance SaaS Electraudio pour les parcours observés le 14 novembre 2026 ; scénarios limites et autres instances en test.** La recette est en lecture seule ; `bookingsInPeriod()`, `event()` et `material()` sont présents sur `main` (révision testée `5a0501b`), absents de `v0.1.0` et candidats à `v0.2.0`. Le test a été exécuté via un script de l'application consommatrice, pas nécessairement via le diagnostic CLI générique.
 
 ## 1. Préparer l'application
 
@@ -25,18 +25,23 @@ Ne pas lancer une série de centaines de lectures sur de larges périodes. Ne pa
 
 ## 3. Critères de réussite
 
-- [ ] Requête par période réussie avec liste d'événements.
-- [ ] Lecture détaillée d'un événement réussie.
-- [ ] Matériel réservé accessible via `materials` avec `quantity` cohérente.
-- [ ] Champ prix catalogue observé (ou absence documentée) dans le matériel imbriqué de l'événement.
-- [ ] Fiche `material($id)` lisible en SaaS avec les droits de l'intégration, ou erreur explicitement notée.
-- [ ] Aucun prix de facturation calculé ou substitué au tarif catalogue.
-- [ ] Aucune écriture métier envoyée.
-- [ ] Aucune fuite de jeton ou de données personnelles dans les logs, GitHub ou les captures partagées.
-- [ ] Version exacte du SDK et résultat consignés de manière anonymisée.
+- [x] `bookingsInPeriod()` : 16 bookings récupérés en novembre 2026, 16 événements reconnus.
+- [x] `event()` : 8 fiches détaillées récupérées, jusqu'à 42 lignes de matériel.
+- [x] `materials` : références, désignations et `quantity` récupérées pour les lignes observées. L'article particulier `SANS_Materiel` reste un article normal, sans filtrage métier par le SDK.
+- [x] `materials[*].material.rental_price` : présent sur les 42 lignes de l'événement examiné, type `string` décimal.
+- [x] `material($id)` : une fiche catalogue réelle lue sur l'instance avec `rental_price` et `replacement_price` ; montants catalogue concordants entre deux lectures.
+- [x] `replacement_price` : chaîne décimale ou `null` sur les lignes examinées.
+- [x] Pas de conversion, calcul de facturation ou substitution de `unit_price` à `rental_price`.
+- [x] Aucune écriture métier effectuée dans le parcours de recette.
+- [x] Version exacte du SDK `5a0501b080c97420bfe0cb75c646dfa4dc33a31e` et environnement PHP CLI 8.4.27 consignés ; aucune donnée de connexion exposée dans ce compte-rendu.
+- [ ] Événement détaillé avec `materials: []` confirmé en SaaS.
+- [ ] `rental_price` absent ou `null` observé en SaaS.
+- [ ] `unit_price` réellement différent de `material.rental_price` vérifié.
+- [ ] HTTP 401/403/404 réels et restrictions de droits explorés.
+- [ ] Autres instances et autres versions de Loxya vérifiées.
 
-Les **traces SaaS étudiées** ont déjà confirmé les schémas des deux routes sur une instance. Cette recette concerne la **nouvelle intégration consommatrice** et la détection des écarts de configuration, sans constituer une certification d'API officielle.
+Les traces réseau initiales et la **recette SaaS réelle du 14 novembre 2026** confirment les parcours P6.1/P6.2 sur l'instance Electraudio. Les tests simulés de CI couvrent d'autres formats et erreurs sans prouver leur comportement réel. La confrontation des montants avec l'interface Loxya n'a pas été attestée séparément. Cette validation ne constitue pas une certification d'API officielle.
 
 ## 4. Publication
 
-Après validation et accord explicite, préparer `v0.2.0`, puis mettre à jour l'application avec une contrainte `^0.2.0` et un nouveau `composer.lock`. Toute modification d'une application reste un chantier distinct de la bibliothèque PHP.
+La publication de `v0.2.0` est autorisée, mais **ne peut être déclarée effective qu'après vérification du tag et de la Release GitHub**. Après publication, une application consommatrice pourra choisir `^0.2.0` et actualiser son propre `composer.lock`. Toute modification d'une application reste un chantier distinct du SDK.
