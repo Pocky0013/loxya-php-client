@@ -902,4 +902,115 @@ test('P6.1 : HTTP 403 et 404 restent des erreurs de lecture sans retry', functio
     }
 });
 
+
+test('P6.2 : le prix catalogue dans un evenement reste distinct du tarif de facturation', function (): void {
+    $detail = [
+        'id' => 42,
+        'materials' => [
+            [
+                'id' => 103, 'reference' => 'TEST-103', 'name' => 'Projecteur fictif', 'quantity' => 3,
+                'unit_price' => '12.00',
+                'material' => [
+                    'id' => 103, 'rental_price' => '32.50', 'replacement_price' => '890.00',
+                ],
+            ],
+            [
+                'id' => 104, 'reference' => 'TEST-104', 'quantity' => 1,
+                'material' => ['id' => 104, 'rental_price' => null],
+            ],
+            [
+                'id' => 105, 'reference' => 'TEST-105', 'quantity' => 1,
+                'material' => ['id' => 105],
+            ],
+        ],
+    ];
+    $f = login(new FakeTransport())->queue('GET', '/events/42', 200, $detail);
+    $event = client($f)->event(42);
+    ensure($event === $detail, 'Reponse evenement modifiee ou tarif reconstruit');
+    ensure($event['materials'][0]['material']['rental_price'] === '32.50', 'Prix catalogue perdu');
+    ensure($event['materials'][0]['unit_price'] === '12.00', 'Prix evenement modifie');
+    ensure($event['materials'][0]['material']['replacement_price'] === '890.00',
+        'Valeur de remplacement perdue');
+    ensure(array_key_exists('rental_price', $event['materials'][1]['material'])
+        && $event['materials'][1]['material']['rental_price'] === null, 'Prix catalogue nul modifie');
+    ensure(!array_key_exists('rental_price', $event['materials'][2]['material']),
+        'Prix catalogue absent invente');
+    ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Appels supplementaires non prevus');
+});
+
+test('P6.2 : fiche materiel catalogue renvoyee telle quelle via GET', function (): void {
+    $priced = [
+        'id' => 103, 'reference' => 'TEST-103', 'name' => 'Projecteur fictif',
+        'rental_price' => '32.50', 'replacement_price' => '890.00',
+        'extension_fictive' => ['valeur' => 1],
+    ];
+    $noPrice = ['id' => 104, 'reference' => 'TEST-104', 'rental_price' => null];
+    $unknownPrice = ['id' => 105, 'reference' => 'TEST-105'];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/materials/103', 200, $priced)
+        ->queue('GET', '/materials/104', 200, $noPrice)
+        ->queue('GET', '/materials/105', 200, $unknownPrice);
+    $c = client($f);
+    ensure($c->material(103) === $priced, 'Prix catalogue ou champs supplementaires modifies');
+    ensure($c->material(104) === $noPrice, 'Prix catalogue nul transforme');
+    ensure($c->material(105) === $unknownPrice, 'Prix catalogue absent complete artificiellement');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Parcours catalogue incorrect');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET' || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Ecriture metier interdite');
+    }
+});
+
+test('P6.2 : identifiants de materiel invalides refuses avant reseau', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([0, -1] as $id) {
+        try {
+            $c->material($id);
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('ID materiel invalide accepte');
+    }
+    ensure($f->calls === [], 'Reseau contacte pour un ID invalide');
+});
+
+test('P6.2 : lecture du materiel retentee une seule fois apres HTTP 401', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/materials/103', 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'JWT_NOUVEAU'])
+        ->queue('GET', '/materials/103', 200, ['id' => 103, 'rental_price' => '32.50']);
+    ensure(client($f)->material(103)['rental_price'] === '32.50', 'Relecture materiel apres 401 echouee');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Nombre de requetes inattendu');
+});
+
+test('P6.2 : les erreurs 403 et 404 du catalogue restent explicites', function (): void {
+    foreach ([403, 404] as $status) {
+        $f = login(new FakeTransport())
+            ->queue('GET', '/materials/103', $status, ['secret' => 'CONFIDENTIEL']);
+        try {
+            client($f)->material(103);
+        } catch (HttpException $e) {
+            ensure($e->status === $status && $e->path === '/materials/103', 'Erreur HTTP incorrecte');
+            ensure(!str_contains($e->getMessage(), 'CONFIDENTIEL'), 'Corps distant divulgue');
+            ensure(count($f->calls) === 2 && $f->remaining() === 0, 'GET relance sur 403/404');
+            continue;
+        }
+        throw new RuntimeException('Erreur HTTP catalogue non remontee');
+    }
+});
+
+test('P6.2 : reponses JSON invalides pour une fiche materiel rejetees', function (): void {
+    foreach (['', 'not-json', '[]', 'null', '"texte"', '{}'] as $body) {
+        $f = login(new FakeTransport())->queueRaw('GET', '/materials/103', 200, $body);
+        try {
+            client($f)->material(103);
+        } catch (ProtocolException) {
+            ensure(count($f->calls) === 2 && $f->remaining() === 0, 'Requete apres JSON invalide');
+            continue;
+        }
+        throw new RuntimeException('Reponse catalogue incorrecte acceptee');
+    }
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";
