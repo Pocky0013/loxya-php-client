@@ -2,15 +2,18 @@
 <?php
 declare(strict_types=1);
 
-$usage = "Usage : php bin/loxya-read-check.php --check | --help\n"
-    ."--help  : affiche ce message sans acces reseau ni configuration.\n"
-    ."--check : verifie les routes de lecture sur l'instance Loxya configuree.\n";
+$usage = "Usage : php bin/loxya-read-check.php --check | --check-p6 YYYY-MM-DD YYYY-MM-DD | --help\n"
+    ."--help     : affiche ce message sans acces reseau ni configuration.\n"
+    ."--check    : diagnostic Contacts existant (societes et beneficiaires).\n"
+    ."--check-p6 : diagnostic de lecture evenements et materiel, periode de 1 a 7 jours civils.\n";
 
 if ($argc === 2 && $argv[1] === '--help') {
     fwrite(STDOUT, $usage);
     exit(0);
 }
-if ($argc !== 2 || $argv[1] !== '--check') {
+$checkContacts = $argc === 2 && $argv[1] === '--check';
+$checkP6 = $argc === 4 && $argv[1] === '--check-p6';
+if (!$checkContacts && !$checkP6) {
     fwrite(STDERR, $usage);
     exit(2);
 }
@@ -29,17 +32,50 @@ use Electraudio\Loxya\ProtocolException;
 use Electraudio\Loxya\TransportException;
 
 try {
-    $report = ReadOnlyProbe::inspect(Factory::fromEnvironment());
-    fwrite(STDOUT, "Session Loxya : OK\n");
-    foreach (['companies' => 'Societes', 'beneficiaries' => 'Beneficiaires'] as $kind => $label) {
-        $entry = $report[$kind];
-        fwrite(STDOUT, $label.' : liste OK, detail '.$entry['detail']."\n");
-        fwrite(STDOUT, '  Enregistrements dans la page : '.$entry['sample_count']."\n");
-        foreach ($entry['pagination_types'] as $key => $type) {
-            fwrite(STDOUT, '  pagination.'.$key.' : '.$type."\n");
+    if ($checkP6) {
+        $report = ReadOnlyProbe::inspectP6(Factory::fromEnvironment(), $argv[2], $argv[3]);
+        fwrite(STDOUT, "Session Loxya : OK\n");
+        fwrite(STDOUT, 'Bookings : '.$report['bookings']['sample_count']
+            .', evenements : '.$report['bookings']['events_count']."\n");
+        foreach ($report['bookings']['field_types'] as $key => $type) {
+            fwrite(STDOUT, '  booking.'.$key.' : '.$type."\n");
         }
-        foreach ($entry['field_types'] as $key => $type) {
-            fwrite(STDOUT, '  '.$key.' : '.$type."\n");
+
+        $event = $report['event'];
+        fwrite(STDOUT, 'Evenement : '.$event['detail']."\n");
+        foreach ($event['field_types'] as $key => $type) {
+            fwrite(STDOUT, '  evenement.'.$key.' : '.$type."\n");
+        }
+        if ($event['materials_count'] !== null) {
+            fwrite(STDOUT, '  lignes de materiel : '.$event['materials_count']."\n");
+        }
+        fwrite(STDOUT, '  ligne : '.$event['line']."\n");
+        foreach ($event['line_types'] as $key => $type) {
+            fwrite(STDOUT, '  ligne.'.$key.' : '.$type."\n");
+        }
+        foreach ($event['nested_material_types'] as $key => $type) {
+            fwrite(STDOUT, '  ligne.material.'.$key.' : '.$type."\n");
+        }
+
+        $catalogue = $report['catalogue'];
+        fwrite(STDOUT, 'Catalogue : '.$catalogue['detail']."\n");
+        foreach ($catalogue['field_types'] as $key => $type) {
+            fwrite(STDOUT, '  catalogue.'.$key.' : '.$type."\n");
+        }
+        fwrite(STDOUT, '  concordance des identifiants : '.$catalogue['id_matches_line']."\n");
+    } else {
+        $report = ReadOnlyProbe::inspect(Factory::fromEnvironment());
+        fwrite(STDOUT, "Session Loxya : OK\n");
+        foreach (['companies' => 'Societes', 'beneficiaries' => 'Beneficiaires'] as $kind => $label) {
+            $entry = $report[$kind];
+            fwrite(STDOUT, $label.' : liste OK, detail '.$entry['detail']."\n");
+            fwrite(STDOUT, '  Enregistrements dans la page : '.$entry['sample_count']."\n");
+            foreach ($entry['pagination_types'] as $key => $type) {
+                fwrite(STDOUT, '  pagination.'.$key.' : '.$type."\n");
+            }
+            foreach ($entry['field_types'] as $key => $type) {
+                fwrite(STDOUT, '  '.$key.' : '.$type."\n");
+            }
         }
     }
     fwrite(STDOUT, "Diagnostic en lecture seule termine. Aucune valeur ou identifiant source affiche.\n");

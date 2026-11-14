@@ -12,6 +12,7 @@ Ne pas assimiler une CI verte à une vérification des réponses d'une instance 
 |---|---|---|
 | Tests simulés | Signatures PHP, séquences HTTP, erreurs, formats fictifs et sécurité | Couvert par la CI |
 | Diagnostic SaaS non destructif — contacts | Session, listes, pages de détail et types des champs d'un échantillon | Outil générique disponible ; son exécution réelle n'est pas attestée par la recette P6 |
+| Diagnostic P6 automatisé (nouvelle commande `--check-p6`) | Liste de période, une fiche événement et une fiche matériel, uniquement statuts, types et compteurs | **En test** : tests simulés ajoutés ; exécution réelle de la nouvelle commande non encore attestée |
 | Recette réelle P6.1 / P6.2 | Événements, détails et matériel, prix catalogue et fiche de matériel | **Validé sur l'instance SaaS Electraudio pour les cas observés le 14 novembre 2026** |
 | Recette manuelle approfondie Contacts | Pagination, recherche, fiches incomplètes, 401/403/404 et droits selon l'instance | Non couverte par cette recette P6 |
 | Écritures contrôlées | Création, modification et relations sur fiches fictives | **Non exécuté** ; autorisation explicite distincte nécessaire |
@@ -39,6 +40,7 @@ Aucun déploiement du SDK dans une application consommatrice n'est nécessaire p
 ```sh
 php bin/loxya-read-check.php --help
 php bin/loxya-read-check.php --check
+php bin/loxya-read-check.php --check-p6 2026-11-14 2026-11-16
 ```
 
 `--help` n'effectue aucun accès réseau et ne demande pas d'identifiants ; `--check` exige une configuration Loxya déjà chargée.
@@ -54,6 +56,23 @@ Le diagnostic ne lance **aucune création, modification, suppression ou synchron
 Sa sortie contient **uniquement** des statuts, un nombre d'entrées de la page et les **types** des champs connus (`string`, `integer`, `null`, `absent`, etc.). Les IDs, noms, adresses, coordonnées, JWT, corps des erreurs HTTP et valeurs personnelles ne sont pas affichés. Sur un échec, l'outil ne divulgue qu'une catégorie d'erreur, ou le statut HTTP.
 
 Le rapport de types provient d'un **échantillon limité** et n'atteste pas les formats de toutes les fiches. Une valeur `absent` n'implique pas qu'un champ ne soit jamais fourni par Loxya.
+
+### Nouveau diagnostic P6, optionnel et indépendant
+
+Le mode `--check-p6 YYYY-MM-DD YYYY-MM-DD` est **distinct** du mode historique `--check` (Contacts). Les dates sont obligatoires au format `YYYY-MM-DD`, début au plus tard à la fin, et **7 jours civils inclusifs maximum**. La période est vérifiée **avant le réseau**, pour limiter les données parcourues par `bookingsInPeriod()`, dont la réponse est non paginée.
+
+Sur un compte Loxya autorisé, la nouvelle commande :
+
+1. Authentifie la session avec `POST /api/session` puis `GET /api/session` (un JWT n'est pas affiché).
+2. Exécute **un** `GET /api/bookings` de la période choisie ; renvoie le nombre d'entrées et d'éléments `entity=event`, et les types des champs d'un booking.
+3. Sélectionne **au plus un événement** ayant `entity=event` et un ID entier strictement positif, puis exécute `GET /api/events/{id}`. Rapporte les types des champs `materials` et d'une ligne, y compris les types de `unit_price`, `material.rental_price` et `replacement_price`, **pas leurs valeurs**.
+4. Pour la **première ligne de matériel** seulement, si son ID est un entier positif, exécute `GET /api/materials/{id}` ; rapporte les types catalogue et un indicateur de correspondance des ID, sans afficher les identifiants.
+5. Lorsque la liste ou le matériel est vide, absent ou mal typé, indique un statut `skipped_…` ou un type `absent` et n'exécute pas les lectures supplémentaires. `materials: []` reste distinct de l'absence de `materials`.
+
+La sortie contient uniquement **des types, des comptes et des statuts constants**. Elle ne révèle aucun nom, référence, ID, prix, devise, contact, valeur de booking, jeton ou réponse distante. Les erreurs sont limitées à leur catégorie (ou au statut HTTP) ; ne pas publier de trace verbale de débogage ni de réponses complètes sur Git.
+
+Le mode P6 utilise **exclusivement les méthodes existantes** du SDK `v0.2.0`. Il ne constitue pas une preuve de couverture de toutes les données (une fiche événement et une fiche matériel au maximum), ni une validation de disponibilité, de tarifs ou de droits sur d'autres instances. **La recette SaaS du 14 novembre a été effectuée avec le script de l'application consommatrice et ne valide pas cette nouvelle commande : celle-ci reste En test.**
+
 
 ## 4. Recette manuelle de lecture
 
@@ -93,6 +112,8 @@ Lors d'une future recette autorisée :
 - [x] Outil de lecture sans dépendance à une application particulière.
 - [x] CI sans identifiants, ni appels SaaS.
 - [x] Tests simulés sur sorties anonymes et cas vide/ID invalide.
+- [x] Nouvelle commande `--check-p6` avec tests simulés : dates bornées, ligne vide/absente, ID invalide, formats tarifaires et rapport sans valeur sensible.
+- [ ] Exécution de la **nouvelle commande** `--check-p6` sur une instance autorisée et comparaison des types avec la recette manuelle : encore non effectuée.
 - [x] Recette spécifique P6.1/P6.2 sur instance SaaS Electraudio effectuée sans écriture métier ; résultat et révision consignés.
 - [ ] Diagnostic générique Contacts `--check` exécuté sur une instance réelle autorisée et observations consignées : **non attesté par la recette P6**.
 - [ ] Recette manuelle des cas limites de lecture Contacts documentée : **non couverte par la recette P6**.

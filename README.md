@@ -16,7 +16,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Consultation des sociétés | **Validé** | `companies()` et `company()` : liste et fiche par ID. |
 | Consultation des bénéficiaires | **Validé** | `beneficiaries()` et `beneficiary()` : liste, fiche par ID et relation `company_id` dans les réponses. |
 | Pagination et recherche | **En test** | Paramètres utilisables ; les formats et cas limites doivent encore être vérifiés sur diverses instances SaaS. |
-| Diagnostic SaaS en lecture seule | **En test** | Outil CLI générique disponible ; vérification sur instance réelle à effectuer par chaque intégrateur. |
+| Diagnostic SaaS en lecture seule | **En test** | `--check` pour les Contacts ; nouveau `--check-p6` (période de 1 à 7 jours) pour un échantillon événements/matériel. Rapports anonymisés, tests simulés ; la nouvelle commande n'a pas encore été exécutée sur le SaaS. |
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
 | Événements : liste, détail et matériel affecté (P6.1) | **Validé sur une instance SaaS — autres environnements en test** | `bookingsInPeriod()` et `event()` : sur l'instance Electraudio, 16 bookings et 8 fiches détaillées lus avec succès ; références, désignations et quantités disponibles. Non inclus dans `v0.1.0`. |
@@ -60,6 +60,18 @@ composer require electraudio/loxya-php-client:^0.2.0
 ```
 
 Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer la révision installée. `dev-main` reste disponible pour les essais volontaires de développements non encore publiés. **`^0.1.0` ne récupère pas automatiquement `0.2.0`** : le changement de contrainte doit être explicitement demandé dans l'application consommatrice.
+
+### Diagnostic P6 en lecture seule (en développement, absent de `v0.2.0`)
+
+La commande optionnelle inspecte les types de réponses déjà accessibles par le SDK, **sans modifier l'API PHP publique** :
+
+```sh
+php bin/loxya-read-check.php --help
+php bin/loxya-read-check.php --check          # Diagnostic Contacts inchangé
+php bin/loxya-read-check.php --check-p6 2026-11-14 2026-11-16
+```
+
+Le diagnostic P6 lit une période explicite de **7 jours civils maximum** via `bookingsInPeriod()`, puis **au plus une** fiche `event()` et **une** fiche `material()` si des identifiants valides sont présents. Il affiche des statuts, des compteurs et des types (`string`, `null`, `absent`...), jamais les noms, identifiants, tarifs, JWT ou réponses JSON complètes. Le diagnostic ne calcule aucun prix. Les identifiants de connexion restent fournis par l'environnement et les tests CI utilisent uniquement un transport simulé. **Une période trop large est refusée avant toute requête HTTP.** Cette extension reste **En test** jusqu'à un essai autorisé sur SaaS et une future publication. Lire la [recette SaaS](docs/RECETTE-SAAS.md).
 
 ## Configuration
 

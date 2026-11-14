@@ -1013,4 +1013,206 @@ test('P6.2 : reponses JSON invalides pour une fiche materiel rejetees', function
     }
 });
 
+test('Diagnostic P6 : parcours borne et rapport limite aux types', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-17';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, [
+            'id' => 31, 'name' => 'SECRET_SESSION_P6', 'token' => 'SECRET_JWT_P6',
+        ])
+        ->queue('GET', $path, 200, [
+            ['id' => 41, 'entity' => 'reservation', 'title' => 'SECRET_BOOKING_OTHER'],
+            ['id' => 42, 'entity' => 'event', 'title' => 'SECRET_EVENT', 'has_materials' => true],
+            ['id' => 43, 'entity' => 'event', 'title' => 'SECRET_EVENT_2'],
+        ])
+        ->queue('GET', '/events/42', 200, [
+            'id' => 42, 'title' => 'SECRET_EVENT',
+            'materials' => [
+                ['id' => 103, 'reference' => 'SECRET_REFERENCE', 'name' => 'SECRET_ARTICLE',
+                    'quantity' => 6, 'unit_price' => '11.30',
+                    'material' => [
+                        'id' => 103, 'rental_price' => '32.50',
+                        'replacement_price' => null, 'name' => 'SECRET_ARTICLE',
+                    ],
+                ],
+                ['id' => 104, 'reference' => 'AUTRE_SECRET', 'quantity' => 1],
+            ],
+        ])
+        ->queue('GET', '/materials/103', 200, [
+            'id' => 103, 'reference' => 'SECRET_REFERENCE', 'name' => 'SECRET_ARTICLE',
+            'rental_price' => '32.50', 'replacement_price' => '1800.00',
+        ]);
+    $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-17');
+
+    ensure($report['session'] === 'ok', 'Session P6 non controlee');
+    ensure($report['bookings']['sample_count'] === 3
+        && $report['bookings']['events_count'] === 2, 'Compteurs P6 inattendus');
+    ensure($report['event']['detail'] === 'ok'
+        && $report['event']['materials_count'] === 2
+        && $report['event']['line'] === 'ok', 'Diagnostic evenement incomplet');
+    ensure($report['event']['line_types']['quantity'] === 'integer'
+        && $report['event']['line_types']['unit_price'] === 'string', 'Types de ligne modifies');
+    ensure($report['event']['nested_material_types']['rental_price'] === 'string'
+        && $report['event']['nested_material_types']['replacement_price'] === 'null',
+        'Types de tarif catalogue imbrique incorrects');
+    ensure($report['catalogue']['detail'] === 'ok'
+        && $report['catalogue']['field_types']['rental_price'] === 'string'
+        && $report['catalogue']['id_matches_line'] === 'yes', 'Fiche catalogue mal diagnostiquee');
+
+    $encoded = json_encode($report, JSON_THROW_ON_ERROR);
+    foreach ([
+        'SECRET_SESSION_P6', 'SECRET_JWT_P6', 'SECRET_BOOKING_OTHER',
+        'SECRET_EVENT', 'SECRET_REFERENCE', 'SECRET_ARTICLE', 'AUTRE_SECRET',
+        '11.30', '32.50', '1800.00', '"42"', '"103"',
+    ] as $secret) {
+        ensure(!str_contains($encoded, $secret), 'Valeur Loxya divulguee par le diagnostic P6');
+    }
+    ensure(count($f->calls) === 5 && $f->remaining() === 0, 'Trop de requetes pour un echantillon P6');
+    foreach ($f->calls as $call) {
+        ensure($call['method'] === 'GET'
+            || ($call['method'] === 'POST' && $call['path'] === '/session'),
+            'Le diagnostic P6 a declenche une ecriture metier');
+    }
+});
+
+test('Diagnostic P6 : une periode vide ne provoque aucune lecture de fiche', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', $path, 200, []);
+    $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+    ensure($report['bookings']['sample_count'] === 0
+        && $report['bookings']['events_count'] === 0, 'Liste vide P6 mal representee');
+    ensure($report['event']['detail'] === 'skipped_no_event'
+        && $report['catalogue']['detail'] === 'skipped_no_material',
+        'Lecture de fiche fictive avec une liste vide');
+    ensure($report['bookings']['field_types'] === []
+        && count($f->calls) === 3 && $f->remaining() === 0, 'Detail demande avec liste vide');
+});
+
+test('Diagnostic P6 : ignorer les bookings non-evenement et IDs invalides', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', $path, 200, [
+            ['id' => '42', 'entity' => 'event', 'title' => 'SECRET_INVALID_EVENT'],
+            ['id' => 50, 'entity' => 'reservation', 'title' => 'SECRET_NON_EVENT'],
+        ]);
+    $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+    ensure($report['bookings']['events_count'] === 1, 'Evenement invalide non reconnu comme evenement');
+    ensure($report['event']['detail'] === 'skipped_invalid_id', 'ID chaine utilise dans une route');
+    ensure($report['bookings']['field_types']['id'] === 'string', 'Type du premier booking perdu');
+    ensure(!str_contains(json_encode($report, JSON_THROW_ON_ERROR), 'SECRET_INVALID_EVENT'),
+        'Nom de booking divulgue');
+    ensure(count($f->calls) === 3 && $f->remaining() === 0, 'Requete avec un ID evenement invalide');
+});
+
+test('Diagnostic P6 : evenement sans materiel ou sans champ materials', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    foreach ([[], null] as $lines) {
+        $detail = ['id' => 42, 'title' => 'SECRET_EVENT'];
+        if (is_array($lines)) {
+            $detail['materials'] = $lines;
+        }
+        $f = login(new FakeTransport())
+            ->queue('GET', '/session', 200, ['id' => 31])
+            ->queue('GET', $path, 200, [['id' => 42, 'entity' => 'event']])
+            ->queue('GET', '/events/42', 200, $detail);
+        $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+        if (is_array($lines)) {
+            ensure($report['event']['materials_count'] === 0
+                && $report['event']['line'] === 'skipped_empty'
+                && $report['event']['field_types']['materials'] === 'array',
+                'Tableau de materiel vide non reconnu');
+        } else {
+            ensure($report['event']['materials_count'] === null
+                && $report['event']['line'] === 'skipped_unavailable'
+                && $report['event']['field_types']['materials'] === 'absent',
+                'Champ absent assimile a une liste vide');
+        }
+        ensure($report['catalogue']['detail'] === 'skipped_no_material'
+            && count($f->calls) === 4 && $f->remaining() === 0,
+            'Catalogue demande en absence de ligne exploitable');
+    }
+});
+
+test('Diagnostic P6 : tarif absent, nul et ID catalogue divergent sans valeurs publiees', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', $path, 200, [['id' => 42, 'entity' => 'event']])
+        ->queue('GET', '/events/42', 200, [
+            'id' => 42,
+            'materials' => [[
+                'id' => 103, 'quantity' => 1, 'unit_price' => '18.00',
+                'material' => ['id' => 103, 'rental_price' => null],
+            ]],
+        ])
+        ->queue('GET', '/materials/103', 200, ['id' => 108, 'replacement_price' => null]);
+    $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+    ensure($report['event']['nested_material_types']['rental_price'] === 'null'
+        && $report['event']['nested_material_types']['replacement_price'] === 'absent',
+        'Champ null et champ absent confondus');
+    ensure($report['catalogue']['field_types']['rental_price'] === 'absent'
+        && $report['catalogue']['field_types']['replacement_price'] === 'null'
+        && $report['catalogue']['id_matches_line'] === 'no',
+        'Diagnostic catalogue n a pas detecte le cas limite');
+    ensure(!str_contains(json_encode($report, JSON_THROW_ON_ERROR), '18.00'),
+        'Valeur evenement divulguee');
+    ensure(count($f->calls) === 5 && $f->remaining() === 0, 'Nombre de lectures inhabituel');
+});
+
+test('Diagnostic P6 : ligne de materiel sans ID exploitable ne declenche pas de GET catalogue', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', $path, 200, [['id' => 42, 'entity' => 'event']])
+        ->queue('GET', '/events/42', 200, [
+            'id' => 42,
+            'materials' => [['id' => '103', 'reference' => 'SECRET', 'material' => null]],
+        ]);
+    $report = ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+    ensure($report['event']['line_types']['id'] === 'string'
+        && $report['event']['line_types']['material'] === 'null'
+        && $report['catalogue']['detail'] === 'skipped_invalid_id',
+        'Ligne invalide non detectee');
+    ensure(count($f->calls) === 4 && $f->remaining() === 0, 'Catalogue consulte avec ID chaine');
+});
+
+test('Diagnostic P6 : periode invalide refusee avant le reseau', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        ['2026-02-30', '2026-03-01'],
+        ['2026-11-15', '2026-11-14'],
+        ['2026-11-14', '2026-11-21'],
+        ['2026-11-14', '2026-11-14T00:00:00'],
+        ['', '2026-11-14'],
+        ['2026-11-14', ''],
+    ] as [$start, $end]) {
+        try {
+            ReadOnlyProbe::inspectP6($c, $start, $end);
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+        throw new RuntimeException('Periode diagnostic P6 invalide acceptee');
+    }
+    ensure($f->calls === [], 'Reseau contacte avec une periode incorrecte');
+});
+
+test('Diagnostic P6 : erreur de lecture reste explicite et non divulguante', function (): void {
+    $path = '/bookings?paginated=0&period%5Bstart%5D=2026-11-14&period%5Bend%5D=2026-11-14';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/session', 200, ['id' => 31])
+        ->queue('GET', $path, 403, ['private' => 'SECRET_HTTP_P6']);
+    try {
+        ReadOnlyProbe::inspectP6(client($f), '2026-11-14', '2026-11-14');
+    } catch (HttpException $e) {
+        ensure($e->status === 403 && !str_contains($e->getMessage(), 'SECRET_HTTP_P6'),
+            'Erreur HTTP P6 non securisee');
+        ensure(count($f->calls) === 3 && $f->remaining() === 0, 'Relance non souhaitee du diagnostic');
+        return;
+    }
+    throw new RuntimeException('Erreur P6 masquee');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";
