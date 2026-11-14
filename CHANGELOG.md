@@ -6,7 +6,7 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ## [0.2.0] - 2026-11-14
 
-**Notes du candidat de publication ; le tag Git et la GitHub Release doivent être vérifiés indépendamment.**
+**Préversion publiée le 14 novembre 2026** : [GitHub Release v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0), tag sur le commit `2b555ebbc8132ec813a401acb8a500bb2ba2da8d`.
 
 - P6.2 : `material(int $id)` lit une fiche du catalogue via `GET /api/materials/{id}`, sans modification des données reçues.
 - P6.2 : documentation de `materials[*].material.rental_price` dans les événements et de `rental_price` / `replacement_price` sur les fiches catalogue. Aucun calcul de prix d'événement, de remise ou de dégressivité.
@@ -19,7 +19,7 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 - P6.1 : validation SaaS réelle du parcours `bookingsInPeriod()` → `event()` → `materials` : 16 bookings, 8 détails, références et quantités des matériaux confirmées.
 - P6.2 : lecture de `material($id)` validée sur une fiche réelle, concordance des prix catalogue avec le matériel imbriqué d'un événement de 42 lignes ; prix de location observés en `string`, valeur de remplacement parfois `null`.
 
-**Portée de validation :** les fonctionnalités P6.1/P6.2 sont validées pour les parcours observés sur l'instance SaaS Electraudio, et restent en test sur d'autres environnements ainsi que pour les cas limites (prix absent, divergence de prix, `materials: []`, erreurs HTTP réelles). Aucun appel HTTP d'écriture métier n'est ajouté. `v0.1.0` ne contient pas P6. Le tag `v0.2.0` et la GitHub Release restent à vérifier avant de déclarer leur publication.
+**Portée de validation :** les fonctionnalités P6.1/P6.2 sont validées pour les parcours observés sur l'instance SaaS Electraudio, et restent en test sur d'autres environnements ainsi que pour les cas limites (prix absent, divergence de prix, `materials: []`, erreurs HTTP réelles). Aucun appel HTTP d'écriture métier n'est ajouté. `v0.1.0` ne contient pas P6. La version `v0.2.0` est publiée. Les versions suivantes suivront le [processus GitHub Actions](docs/PUBLICATION-GITHUB-ACTIONS.md), avec contrôle et publication séparés.
 
 ## [0.1.0] - 2026-11-12
 
