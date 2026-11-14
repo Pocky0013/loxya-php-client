@@ -4,6 +4,9 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ## [Unreleased]
 
+- Diagnostic de lecture P6 optionnel `--check-p6 YYYY-MM-DD YYYY-MM-DD` : échantillon borné (7 jours, 1 événement, 1 article catalogue), types et comptes anonymisés, prix `absent` / `null` distingués, sans calculs ni écritures métier.
+- Le diagnostic Contacts `--check` reste inchangé ; aucune méthode publique du SDK modifiée. Tests avec transport simulé, recette de la nouvelle commande sur SaaS encore à effectuer.
+
 ## [0.2.0] - 2026-11-14
 
 **Préversion publiée le 14 novembre 2026** : [GitHub Release v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0), tag sur le commit `2b555ebbc8132ec813a401acb8a500bb2ba2da8d`.
