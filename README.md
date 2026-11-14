@@ -8,7 +8,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 
 ## État du projet
 
-*Dernière mise à jour : 14 novembre 2026. **`v0.1.0` est publiée en préversion expérimentale** ; `v0.2.0` est autorisée et préparée, mais son tag et sa Release restent à publier. Pas de publication Packagist.*
+*Dernière mise à jour : 14 novembre 2026. **`v0.1.0` et `v0.2.0` sont publiées en préversions expérimentales.** Aucun paquet Packagist ; publication des prochaines versions préparée via GitHub Actions.*
 
 | Fonctionnalité | Statut | Ce qui est disponible |
 |---|---|---|
@@ -23,12 +23,12 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Prix catalogue et fiche matériel (P6.2) | **Validé sur une instance SaaS — autres environnements en test** | Sur 42 lignes d'un événement, `material.rental_price` présent et de type `string` ; `replacement_price` parfois `null`. Lecture réelle réussie avec `material($id)` et tarif concordant avec l'événement. |
 | Autres ressources Loxya | **En projet** | Recherche globale d'événements, listes paginées et consultation du catalogue complet, parcs : à étudier séparément. |
 | Version `v0.1.0` | **Préversion publiée** | [Release GitHub](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.1.0) sur le commit `efa99bf8` ; contacts, sans méthodes P6.1. |
-| Version `v0.2.0` | **Publication autorisée** | Documentation et recette P6.1/P6.2 prêtes pour la version expérimentale ; création du tag Git et de la GitHub Release à vérifier avant toute installation par version. |
+| Version `v0.2.0` | **Préversion publiée** | [Release GitHub](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0) sur le commit `2b555ebb` ; lectures événements, matériel et prix catalogue. |
 | Packagist | **En projet** | Installation depuis GitHub/VCS ; inscription Packagist non décidée. |
 
 **Lecture des statuts :** **Validé sur une instance SaaS** = parcours effectivement exécuté avec succès sur l'instance Electraudio et couvert en CI ; **autres environnements en test** = compatibilité externe et cas limites non attestés ; **En test** = parcours implémenté, recette réelle incomplète ; **En projet** = non implémenté ou non publié. Aucune validation n'atteste la stabilité universelle des routes internes de Loxya.
 
-Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md), le [contrat des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md). Les versions et les évolutions sont suivies dans le [changelog](CHANGELOG.md), les [notes de v0.1.0](docs/RELEASE-NOTES-v0.1.0.md), la [politique de versionnement](docs/VERSIONING.md) et la [checklist de publication](docs/RELEASE-CHECKLIST.md). Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
+Consultez le [contrat de lecture](docs/CONTRAT-LECTURE-CONTACTS.md), le [contrat des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md) et la [recette SaaS contrôlée](docs/RECETTE-SAAS.md). Les versions et les évolutions sont suivies dans le [changelog](CHANGELOG.md), les [notes de v0.2.0](docs/RELEASE-NOTES-v0.2.0.md), la [politique de versionnement](docs/VERSIONING.md), la [checklist de publication](docs/RELEASE-CHECKLIST.md) et la [publication guidée GitHub Actions](docs/PUBLICATION-GITHUB-ACTIONS.md). Ce tableau est à mettre à jour lors de chaque évolution des capacités du paquet.
 
 ## Licence
 
@@ -53,13 +53,13 @@ Aucune authentification GitHub n'est nécessaire pour télécharger ce dépôt p
 
 Composer installe le paquet pendant la préparation de l'application ou son déploiement, pas à chaque ouverture de page.
 
-**La préversion `v0.1.0` est publiée.** Une application disposant du dépôt VCS peut utiliser cette version figée :
+**Les préversions `v0.1.0` et `v0.2.0` sont publiées.** Pour disposer des méthodes P6.1/P6.2, une application disposant du dépôt VCS peut choisir :
 
 ```bash
-composer require electraudio/loxya-php-client:^0.1.0
+composer require electraudio/loxya-php-client:^0.2.0
 ```
 
-Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer le commit installé. Pour essayer les méthodes P6.1/P6.2 **avant** la publication du tag `v0.2.0`, une application de développement peut utiliser `dev-main` et verrouiller le SHA dans son `composer.lock`. **`^0.1.0` ne récupère pas automatiquement `0.2.0`** : l'application devra décider explicitement du changement de contrainte après la publication du tag.
+Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer la révision installée. `dev-main` reste disponible pour les essais volontaires de développements non encore publiés. **`^0.1.0` ne récupère pas automatiquement `0.2.0`** : le changement de contrainte doit être explicitement demandé dans l'application consommatrice.
 
 ## Configuration
 
@@ -130,16 +130,16 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `company($id)` | Lire une fiche société |
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
-| `bookingsInPeriod($startDate, $endDate)` / `event($id)` | Lire les événements d'une période, leurs fiches et leur matériel réservé (P6.1, sur `main` ; candidat `v0.2.0`) |
-| `material($id)` | Lire une fiche catalogue de matériel par ID, y compris le prix catalogue s'il est fourni (P6.2, sur `main` ; candidat `v0.2.0`) |
+| `bookingsInPeriod($startDate, $endDate)` / `event($id)` | Lire les événements d'une période, leurs fiches et leur matériel réservé (P6.1, disponible dès `v0.2.0`) |
+| `material($id)` | Lire une fiche catalogue de matériel par ID, y compris le prix catalogue s'il est fourni (P6.2, disponible dès `v0.2.0`) |
 
 Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule. Le **[contrat de confirmation des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md)** précise les garanties et limites des POST/PUT, notamment les résultats incertains.
 
 Les listes renvoient `data` (tableau de fiches) et `pagination` (métadonnées conservées sans transformation). Un format de liste inattendu entraîne une `ProtocolException`. Pour dissocier un bénéficiaire, utilisez `null` comme `$companyId`. Le dernier paramètre représente l'ancien `company_id` attendu et permet de détecter une modification concurrente, sans constituer un verrou transactionnel.
 
-### P6.1 — Lecture des événements et de leur matériel (validé sur une instance SaaS)
+### P6.1 — Lecture des événements et de leur matériel (`v0.2.0`)
 
-Ces méthodes sont **fusionnées dans `main` depuis la PR #9**, avec tests PHP 8.2, 8.4 et 8.5 réussis, mais elles ne font **pas** partie du tag `v0.1.0` : leur première version candidate est `v0.2.0`.
+Ces méthodes sont **publiées depuis `v0.2.0`**, avec CI validée sur PHP 8.2, 8.4 et 8.5 et recette SaaS de lecture réelle sur l'instance Electraudio. Elles ne font pas partie du tag `v0.1.0`.
 
 | Méthode candidate | Route | Réponse |
 |---|---|---|
@@ -149,7 +149,7 @@ Ces méthodes sont **fusionnées dans `main` depuis la PR #9**, avec tests PHP 8
 Ces deux routes ont été observées en capture réseau puis **testées en lecture seule sur l'instance SaaS Electraudio** le 14 novembre 2026 : 16 bookings, 8 fiches détaillées et des listes comprenant de 1 à 42 lignes de matériel. Les réponses sont conservées sans transformation dans le SDK. `materials[*].id` correspond à l'identifiant catalogue, tout comme `materials[*].material.id` lorsqu'il est présent ; les données de la ligne de réservation sont à distinguer de cette fiche. Les cas limites non observés restent en test.
 
 ```php
-// Disponible sur main, puis dans v0.2.0 apres publication ; pas dans v0.1.0.
+// Disponible depuis v0.2.0 (pas dans v0.1.0).
 $bookings = $client->bookingsInPeriod('2027-05-01', '2027-05-31');
 foreach ($bookings as $booking) {
     if (($booking['entity'] ?? null) !== 'event') {
@@ -174,7 +174,7 @@ foreach ($bookings as $booking) {
 }
 ```
 
-### P6.2 — Prix catalogue du matériel (validé sur une instance SaaS)
+### P6.2 — Prix catalogue du matériel (`v0.2.0`)
 
 La lecture d'un événement restitue déjà les données brutes de chaque ligne `materials`. Quand Loxya inclut `materials[*].material.rental_price`, c'est le **prix catalogue de location du matériel**, distinct du tarif éventuellement saisi sur l'événement (`unit_price`). Aucune nouvelle requête n'est nécessaire dans ce cas. Les champs `rental_price` et `replacement_price` sont facultatifs : conserver la différence entre absent, `null` et un montant (`string` ou `number` selon la réponse SaaS).
 
@@ -195,7 +195,7 @@ foreach ($event['materials'] ?? [] as $line) {
 }
 ```
 
-La méthode `material()` renvoie les valeurs de Loxya **sans arrondi, conversion monétaire, calcul de dégressivité, remise ou total d'événement**. **Validée en lecture réelle sur l'instance SaaS Electraudio** le 14 novembre 2026 ; le prix catalogue obtenu correspond à celui de l'article dans l'événement testé. Sur les 42 lignes d'événement examinées, `rental_price` était une chaîne décimale ; certaines valeurs `replacement_price` étaient `null`. La comparaison directe avec l'interface graphique de Loxya et les cas de prix manquant restent à tester. La méthode est sur `main`, absente du tag `v0.1.0`, et sa publication dans `v0.2.0` reste à matérialiser par un tag.
+La méthode `material()` renvoie les valeurs de Loxya **sans arrondi, conversion monétaire, calcul de dégressivité, remise ou total d'événement**. **Validée en lecture réelle sur l'instance SaaS Electraudio** le 14 novembre 2026 ; le prix catalogue obtenu correspond à celui de l'article dans l'événement testé. Sur les 42 lignes d'événement examinées, `rental_price` était une chaîne décimale ; certaines valeurs `replacement_price` étaient `null`. La comparaison directe avec l'interface graphique de Loxya et les cas de prix manquant restent à tester. La méthode est publiée depuis **`v0.2.0`** et absente du tag `v0.1.0`.
 
 Les routes de recherche courte, de pagination globale, de liste complète du catalogue, de disponibilités et les variantes des fiches bookings restent à étudier. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md), le [contrat P6.2](docs/CONTRAT-LECTURE-MATERIEL.md) et la [recette générique P6](docs/RECETTE-INTEGRATEUR-P6.md) avant une mise à jour d'application.
 

@@ -1,70 +1,59 @@
-# Checklist de publication — méthode commune
+# Checklist de publication du SDK — depuis GitHub
 
-**État actuel : `v0.1.0` déjà publiée ; candidat `v0.2.0` non tagué.** Ce document décrit les contrôles applicables à chaque future version. Les tests ne créent jamais de tag ni de GitHub Release.
+**Versions publiées :** [`v0.1.0`](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.1.0) (12.11.2026) et [`v0.2.0`](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0) (14.11.2026). Les tags historiques sont légers ; **les prochains tags seront annotés** par GitHub Actions. Ne pas retoucher les tags publiés.
 
-## 1. Revue avant publication
+**Pour une future version :** utiliser le [guide GitHub Actions](PUBLICATION-GITHUB-ACTIONS.md), sans copie locale ni commande Git sur l'ordinateur du mainteneur.
 
-- [ ] La PR de préparation de la **version ciblée** est fusionnée et le commit exact de `main` est identifié.
-- [ ] README, `CHANGELOG.md`, contrats de lecture/écriture, statut des fonctionnalités et politique de versionnement à jour.
-- [ ] Signature publique des méthodes, noms des paramètres et exceptions examinés pour les intégrateurs.
-- [ ] Composer : `electraudio/loxya-php-client`, namespace `Electraudio\Loxya\`, PHP `^8.2`, extensions `curl` / `json`.
-- [ ] Licence PolyForm Internal Use 1.0.0, `composer.json` à `"license": "proprietary"`, aucune modification implicite des conditions de redistribution.
-- [ ] Aucun secret, JWT, fichier `.env`, valeur de contact réelle, résultat privé ou trace sensible dans les fichiers versionnés.
-- [ ] Aucune route Loxya non vérifiée présentée comme prise en charge ou officiellement stable.
+## 1. Préparation dans le SDK
 
-## 2. Tests sans réseau SaaS
+- [ ] Obtenir l'autorisation explicite de préparer la version demandée (par exemple `v0.3.0`).
+- [ ] Faire relire et fusionner les PR concernées uniquement vers `main` du **SDK**.
+- [ ] Vérifier la compatibilité des signatures publiques et les impacts sur les intégrateurs.
+- [ ] Mettre à jour le README et les contrats concernés ; ne mentionner **Validé** que pour des parcours confirmés.
+- [ ] Ajouter une entrée datée `## [X.Y.Z] - AAAA-MM-JJ` dans `CHANGELOG.md`, tout en conservant `## [Unreleased]`.
+- [ ] Créer `docs/RELEASE-NOTES-vX.Y.Z.md` avec titre, nouveautés, compatibilité, limites, statut de validation SaaS et consignes Composer. Retirer les mentions « notes candidates » de son en-tête.
+- [ ] Ne versionner aucun identifiant, donnée client, capture SaaS ou secret.
 
-Exécuter dans un clone du commit candidat :
+La politique de versionnement figure dans [VERSIONING.md](VERSIONING.md). Les routes Loxya sont internes et non officielles, indépendamment du numéro de version du paquet.
 
-```sh
-composer validate --strict --no-check-publish
-composer install --no-interaction --prefer-dist --no-progress
-composer lint
-composer test
-composer api-check
-php bin/loxya-read-check.php --help
-```
+## 2. Vérification technique obligatoire
 
-- [ ] CI réussie sur PHP 8.2, 8.4 et 8.5.
-- [ ] Contrôle des signatures publiques réussi et aucune dépendance au SaaS dans les tests.
-- [ ] Les nouveaux scripts et leurs dépendances sont installables depuis le dépôt.
-- [ ] Contrôler l'absence de changements non documentés dans les exceptions et la confirmation des écritures.
+- [ ] Vérifier que l'exécution du workflow `Verification du client PHP` est verte pour la PR documentaire/de version.
+- [ ] Contrôler les prérequis Composer : `electraudio/loxya-php-client`, PHP `^8.2`, extensions `curl` et `json`, licence PolyForm Internal Use License 1.0.0 (`proprietary` dans Composer).
+- [ ] Contrôler que le contrat public et les erreurs HTTP/écritures conservent les garanties prévues.
+- [ ] Décrire les recettes SaaS réellement réalisées ou les scénarios laissés **En test**.
+- [ ] Confirmer que **le commit exact** à publier a été identifié sur `main`.
 
-## 3. Limites et vérification SaaS
+Le [workflow de publication](../.github/workflows/publish-release.yml) appelle directement la **même matrice CI** PHP 8.2 / 8.4 / 8.5, avec `composer validate --strict --no-check-publish`, `composer install`, tests PHP, syntaxe, vérification des signatures et tests du contrôle de release. Aucun accès SaaS n'est effectué.
 
-- [ ] Lorsque la politique de publication l'exige, diagnostic `php bin/loxya-read-check.php --check` exécuté sur une instance autorisée, avec observations **anonymisées et conservées hors Git public**.
-- [ ] Recherche, pagination, champs manquants, relations et réponse 404 examinés selon [RECETTE-SAAS.md](RECETTE-SAAS.md), ou explicitement laissés au statut **En test**.
-- [ ] Aucune écriture réelle sans accord distinct, et seulement sur des fiches fictives autorisées.
-- [ ] La comparaison stricte des écritures est indiquée comme **à valider en conditions réelles**, sans transformer une incertitude en faux succès.
-- [ ] Vérifier les conditions d'usage des routes HTTP internes et les limites de la licence avant toute diffusion élargie.
+## 3. Contrôle sans publication
 
-L'absence de recette SaaS exhaustive ne doit **pas** être présentée comme une validation. Décider explicitement si une version expérimentale avec les limites documentées peut être publiée.
+Depuis **GitHub → Actions → Publication manuelle du SDK → Run workflow** :
 
-## 4. Publication uniquement après approbation explicite
+- [ ] Choisir **main**, renseigner la nouvelle version au format `vX.Y.Z`.
+- [ ] Choisir le mode **`verifier`** et lancer le workflow.
+- [ ] Confirmer que `preparer` et `tests` sont verts.
+- [ ] Si une étape échoue, **corriger la PR/les documents avant de recommencer**, sans tag ni Release.
 
-- [ ] Obtenir l'accord du responsable sur le **commit exact** et sur le nom du nouveau tag (par exemple `v0.2.0`).
-- [ ] Vérifier que le **nouveau** tag n'existe pas.
-- [ ] **Avant le tag**, déplacer les notes candidates de `CHANGELOG.md` sous un en-tête daté `## [0.2.0] - AAAA-MM-JJ` et conserver `## [Unreleased]`.
-- [ ] Fusionner le dernier commit documentaire ; vérifier la CI **sur ce commit exact**, puis le confirmer à nouveau comme cible du tag. Ne pas annoncer la publication avant son existence effective.
-- [ ] Créer et pousser le tag Git annoté uniquement après cet accord :
+Ce mode n'écrit aucun tag et ne crée aucune Release.
 
-```sh
-git fetch --tags origin
-git checkout main
-git pull --ff-only origin main
-git tag -a v0.2.0 -m "Loxya PHP Client v0.2.0"
-git push origin v0.2.0
-```
+## 4. Publication après autorisation spécifique
 
-- [ ] Vérifier que le tag cible le bon commit, que les artefacts de CI sont valides et que les notes de version signalent les fonctionnalités **En test**.
-- [ ] Préparer une GitHub Release depuis le nouveau tag **existant**, avec les [notes candidates v0.2.0](RELEASE-NOTES-v0.2.0.md), uniquement après vérification du tag.
-- [ ] Packagist éventuel, **sur décision distincte** ; ne pas présumer que la licence source disponible équivaut à une licence OSI.
-- [ ] Vérifier ensuite le README et ajuster son tableau de statut si nécessaire sans réécrire le tag publié.
+- [ ] Confirmer l'accord du mainteneur pour **ce numéro de version** et le commit courant de `main`.
+- [ ] Depuis la même page GitHub Actions, choisir **main**, renseigner la version et sélectionner **`publier`**.
+- [ ] Laisser l'option **`prerelease`** cochée tant que le SDK reste expérimental.
+- [ ] Attendre que `preparer`, `tests` et `publier` soient tous verts.
+- [ ] Vérifier dans **Releases** que la GitHub Release existe, n'est pas un brouillon, pointe sur le bon commit et utilise les notes attendues.
+- [ ] Vérifier que le tag distant est **annoté** et pointe sur le même commit validé.
+- [ ] Si le tag a été créé mais que la Release a échoué, suivre la procédure de reprise du [guide](PUBLICATION-GITHUB-ACTIONS.md). Ne pas recréer ni déplacer un tag publié.
 
-Le champ `version` de Composer ne doit pas être modifié : Composer déduit la version du tag.
+**La publication n'est jamais déclenchée automatiquement par une fusion.** Le workflow est déclenché manuellement, et `publier` doit être choisi volontairement. Packagist et les applications consommatrices sont hors de cette automatisation.
 
-## 5. Communication aux intégrateurs
+## 5. Après publication
 
-Fournir le tag, le SHA, la liste des fonctionnalités utilisables, les prérequis PHP, les limites des routes non officielles, la documentation des exceptions et les liens aux notes de version. Le projet consommateur pourra utiliser `composer require electraudio/loxya-php-client:^0.2.0` **après publication** de cette version avec la déclaration VCS requise et mettre à jour **son propre** `composer.lock`.
+- [ ] Fournir le numéro, l'URL de Release, le SHA et les limites connues aux intégrateurs.
+- [ ] Vérifier que le README sur `main` reflète l'état de publication ; si besoin, corriger par une **nouvelle PR documentaire**, sans modifier le commit déjà tagué.
+- [ ] Mettre à jour chaque application consommatrice **dans son propre dépôt et après autorisation spécifique**, par exemple avec `^0.3.0` dans Composer et un `composer.lock` révisé.
+- [ ] Ne pas confondre publication du SDK, mise à jour de la dépendance d'un portail et déploiement d'application.
 
-Le SDK ne déploie ni ne modifie aucun projet consommateur.
+Pour retrouver les étapes détaillées et les erreurs possibles, lire [PUBLICATION-GITHUB-ACTIONS.md](PUBLICATION-GITHUB-ACTIONS.md).

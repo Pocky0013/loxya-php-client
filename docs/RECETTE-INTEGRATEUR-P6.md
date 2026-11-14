@@ -1,6 +1,6 @@
 # Recette d'intégration P6.1 / P6.2 — événements, matériel et prix catalogue
 
-**Statut : P6.1 et P6.2 validés sur l'instance SaaS Electraudio pour les parcours observés le 14 novembre 2026 ; scénarios limites et autres instances en test.** La recette est en lecture seule ; `bookingsInPeriod()`, `event()` et `material()` sont présents sur `main` (révision testée `5a0501b`), absents de `v0.1.0` et candidats à `v0.2.0`. Le test a été exécuté via un script de l'application consommatrice, pas nécessairement via le diagnostic CLI générique.
+**Statut : P6.1 et P6.2 validés sur l'instance SaaS Electraudio pour les parcours observés le 14 novembre 2026 ; scénarios limites et autres instances en test.** La recette est en lecture seule ; `bookingsInPeriod()`, `event()` et `material()` sont **publiées depuis `v0.2.0`** (révision de recette SaaS `5a0501b`) et absentes de `v0.1.0`. Le test a été exécuté via un script de l'application consommatrice, pas nécessairement via le diagnostic CLI générique.
 
 ## 1. Préparer l'application
 
@@ -44,4 +44,4 @@ Les traces réseau initiales et la **recette SaaS réelle du 14 novembre 2026** 
 
 ## 4. Publication
 
-La publication de `v0.2.0` est autorisée, mais **ne peut être déclarée effective qu'après vérification du tag et de la Release GitHub**. Après publication, une application consommatrice pourra choisir `^0.2.0` et actualiser son propre `composer.lock`. Toute modification d'une application reste un chantier distinct du SDK.
+La préversion `v0.2.0` a été **publiée le 14 novembre 2026** : [Release GitHub](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0). Une application consommatrice peut désormais choisir `^0.2.0` et actualiser son propre `composer.lock`. Toute modification d'une application reste un chantier distinct du SDK.

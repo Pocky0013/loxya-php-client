@@ -1,8 +1,8 @@
-# Loxya PHP Client v0.2.0 — notes candidates
+# Loxya PHP Client v0.2.0
 
-**Statut : candidat validé sur une instance SaaS, publication autorisée ; création du tag Git et de la GitHub Release à vérifier.**
+**Statut : préversion publiée le 14 novembre 2026** — [GitHub Release v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0), commit `2b555ebbc8132ec813a401acb8a500bb2ba2da8d`. Validation sur une instance SaaS pour les parcours décrits ci-dessous.
 
-Cette version expérimentale candidate du SDK PHP non officiel ajoute les premières lectures d'événements, du matériel affecté et des fiches catalogue, **sans modifier les signatures du contrat public existant de `v0.1.0`**.
+Cette version expérimentale du SDK PHP non officiel ajoute les premières lectures d'événements, du matériel affecté et des fiches catalogue, **sans modifier les signatures du contrat public existant de `v0.1.0`**.
 
 ## Nouveautés
 
@@ -27,7 +27,7 @@ La licence PolyForm Internal Use License 1.0.0, la contrainte PHP `^8.2` et le n
 
 ## Mise à niveau Composer
 
-La mise à niveau vers `^0.2.0` sera possible **uniquement après la publication effective du tag**, depuis le dépôt VCS GitHub :
+La mise à niveau vers `^0.2.0` est **possible depuis la publication du tag**, depuis le dépôt VCS GitHub :
 
 ```sh
 composer require electraudio/loxya-php-client:^0.2.0

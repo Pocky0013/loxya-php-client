@@ -1,0 +1,153 @@
+name: Publication manuelle du SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Nouvelle version (ex. v0.3.0)'
+        required: true
+        type: string
+      mode:
+        description: 'Verifier sans publier ou publier'
+        required: true
+        type: choice
+        default: verifier
+        options:
+          - verifier
+          - publier
+      prerelease:
+        description: 'Publier comme preversion experimentale'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-release
+  cancel-in-progress: false
+
+jobs:
+  preparer:
+    name: Verifier le candidat et le commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le commit de reference
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Valider la branche, la documentation et le tag
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "La publication doit etre lancee depuis la branche main." >&2
+            exit 1
+          fi
+
+          bash scripts/release-check.sh "$VERSION"
+
+          # Ne jamais publier depuis un commit deja depasse sur main.
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$remote_main" != "$GITHUB_SHA" ]]; then
+            echo "main a evolue depuis le lancement ; recommencer sur le nouveau commit." >&2
+            exit 1
+          fi
+
+          git fetch --tags origin
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La Release $VERSION existe deja. Aucun doublon autorise." >&2
+            exit 1
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/$VERSION"; then
+            # Reprise autorisee uniquement si le tag existant est annote et correct.
+            if [[ "$(git cat-file -t "refs/tags/$VERSION")" != "tag" ]] ||
+               [[ "$(git rev-list -n 1 "refs/tags/$VERSION")" != "$GITHUB_SHA" ]]; then
+              echo "Tag existant leger ou pointant sur un autre commit : arret." >&2
+              exit 1
+            fi
+            echo "Tag annote deja present, sans Release : reprise possible."
+          fi
+
+          echo "Candidat $VERSION controle sur $GITHUB_SHA ; mode ${{ inputs.mode }}."
+
+  tests:
+    name: CI PHP 8.2 / 8.4 / 8.5 sur le commit exact
+    needs: preparer
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publier:
+    name: Creer le tag annote et la Release
+    needs: [preparer, tests]
+    if: ${{ inputs.mode == 'publier' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Recuperer le commit valide
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Publier avec le jeton GitHub Actions
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || exit 1
+          bash scripts/release-check.sh "$VERSION"
+
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$remote_main" != "$GITHUB_SHA" ]]; then
+            echo "main a change apres les tests : publication refusee." >&2
+            exit 1
+          fi
+
+          git fetch --tags origin
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La Release $VERSION existe deja : publication refusee." >&2
+            exit 1
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/$VERSION"; then
+            if [[ "$(git cat-file -t "refs/tags/$VERSION")" != "tag" ]] ||
+               [[ "$(git rev-list -n 1 "refs/tags/$VERSION")" != "$GITHUB_SHA" ]]; then
+              echo "Tag existant incompatible : publication refusee." >&2
+              exit 1
+            fi
+            echo "Reutilisation du tag annote existant apres une publication interrompue."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$VERSION" "$GITHUB_SHA" -m "Loxya PHP Client $VERSION"
+            git push origin "refs/tags/$VERSION"
+          fi
+
+          flags=(
+            --verify-tag
+            --fail-on-no-commits
+            --title "Loxya PHP Client $VERSION"
+            --notes-file "docs/RELEASE-NOTES-$VERSION.md"
+            --target "$GITHUB_SHA"
+          )
+          if [[ "$PRERELEASE" == "true" ]]; then
+            flags+=(--prerelease)
+          fi
+
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json url,isDraft,isPrerelease,tagName

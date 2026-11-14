@@ -100,4 +100,4 @@ Essais effectués en SSH depuis le Portail Electraudio DEV (PHP CLI 8.4.27) avec
 - [ ] Erreurs réelles 401/403/404 et droits restrictifs : tests simulés uniquement.
 - [ ] Autres instances SaaS ou versions de Loxya : non vérifiées.
 
-**Conclusion : P6.2 est validé sur l'instance SaaS Electraudio pour les scénarios observés**, sans garantie de stabilité sur d'autres installations. Les réponses restent brutes : les chaînes décimales ne sont pas converties en `float` et les règles de facturation de l'événement ne sont pas reproduites. La publication éventuelle de `v0.2.0` demeure une opération de versionnement distincte.
+**Conclusion : P6.2 est validé sur l'instance SaaS Electraudio pour les scénarios observés**, sans garantie de stabilité sur d'autres installations. Les réponses restent brutes : les chaînes décimales ne sont pas converties en `float` et les règles de facturation de l'événement ne sont pas reproduites. La fonction fait partie de la préversion [v0.2.0 publiée](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0) ; les prochaines publications utiliseront un processus de versionnement distinct.
