@@ -61,7 +61,7 @@ composer require electraudio/loxya-php-client:^0.2.0
 
 Le numéro de version provient des **tags Git** ; ne pas ajouter de champ `version` dans `composer.json`. Chaque application doit conserver son propre `composer.lock` pour figer la révision installée. `dev-main` reste disponible pour les essais volontaires de développements non encore publiés. **`^0.1.0` ne récupère pas automatiquement `0.2.0`** : le changement de contrainte doit être explicitement demandé dans l'application consommatrice.
 
-### Diagnostic P6 en lecture seule (sur `main`, non publié dans `v0.2.0`)
+### Diagnostic P6 en lecture seule (en développement, absent de `v0.2.0`)
 
 La commande optionnelle inspecte les types de réponses déjà accessibles par le SDK, **sans modifier l'API PHP publique** :
 
@@ -71,7 +71,7 @@ php bin/loxya-read-check.php --check          # Diagnostic Contacts inchangé
 php bin/loxya-read-check.php --check-p6 2026-11-14 2026-11-16
 ```
 
-Le diagnostic P6 lit une période explicite de **7 jours civils maximum** via `bookingsInPeriod()`, puis **au plus une** fiche `event()` et **une** fiche `material()` si des identifiants valides sont présents. Il affiche des statuts, des compteurs et des types (`string`, `null`, `absent`...), jamais les noms, identifiants, tarifs, JWT ou réponses JSON complètes. Le diagnostic ne calcule aucun prix. Les identifiants de connexion restent fournis par l'environnement et les tests CI utilisent uniquement un transport simulé. **Une période trop large est refusée avant toute requête HTTP.** Cette extension en PR reste **En test** jusqu'à un essai autorisé sur SaaS et une future publication. Lire la [recette SaaS](docs/RECETTE-SAAS.md).
+Le diagnostic P6 lit une période explicite de **7 jours civils maximum** via `bookingsInPeriod()`, puis **au plus une** fiche `event()` et **une** fiche `material()` si des identifiants valides sont présents. Il affiche des statuts, des compteurs et des types (`string`, `null`, `absent`...), jamais les noms, identifiants, tarifs, JWT ou réponses JSON complètes. Le diagnostic ne calcule aucun prix. Les identifiants de connexion restent fournis par l'environnement et les tests CI utilisent uniquement un transport simulé. **Une période trop large est refusée avant toute requête HTTP.** Cette extension reste **En test** jusqu'à un essai autorisé sur SaaS et une future publication. Lire la [recette SaaS](docs/RECETTE-SAAS.md).
 
 ## Configuration
 
