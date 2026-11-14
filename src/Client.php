@@ -71,6 +71,17 @@ final class Client
         return $this->request('GET', '/companies/'.self::id($id));
     }
 
+    /**
+     * Lit une fiche materiel du catalogue Loxya, notamment son prix de location
+     * catalogue (rental_price) lorsqu'il est disponible.
+     * Les donnees sont conservees sans calcul tarifaire ni normalisation.
+     *
+     * @return array<string,mixed>
+     */
+    public function material(int $id): array
+    {
+        return $this->request('GET', '/materials/'.self::id($id));
+    }
 
     /**
      * Retourne la fiche brute d'un evenement, avec ses lignes de materiel affecte
