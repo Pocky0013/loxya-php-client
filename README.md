@@ -1,6 +1,6 @@
 # Loxya PHP Client
 
-Bibliothèque PHP non officielle pour accéder depuis une application PHP aux routes HTTP internes de [Loxya](https://loxya.com/). Elle encapsule l'authentification, le transport HTTPS, les méthodes des ressources prises en charge et le traitement des erreurs. **Les sociétés et les bénéficiaires sont les premières ressources implémentées**, mais la bibliothèque n'est liée à aucun logiciel consommateur.
+Bibliothèque PHP non officielle pour accéder depuis une application PHP aux routes HTTP internes de [Loxya](https://loxya.com/). Elle encapsule l'authentification, le transport HTTPS, les méthodes des ressources prises en charge et le traitement des erreurs. **Les sociétés et les bénéficiaires sont les premières ressources implémentées** ; des lectures d'événements et de matériel sont également en test. La bibliothèque n'est liée à aucun logiciel consommateur.
 
 Il s'agit d'un **client PHP (SDK)**, pas d'un serveur REST, d'une API publique officielle ni d'un proxy à déployer. Chaque application l'installe avec Composer, fournit sa propre configuration Loxya et traite les réponses selon ses besoins.
 
@@ -8,7 +8,7 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 
 ## État du projet
 
-*Dernière mise à jour : 12 novembre 2026. **`v0.1.0` est publiée en préversion expérimentale** ; `v0.2.0` est en préparation. Pas de publication Packagist.*
+*Dernière mise à jour : 14 novembre 2026. **`v0.1.0` est publiée en préversion expérimentale** ; `v0.2.0` est en préparation. Pas de publication Packagist.*
 
 | Fonctionnalité | Statut | Ce qui est disponible |
 |---|---|---|
@@ -20,9 +20,10 @@ Les routes utilisées ne sont **ni publiques ni versionnées officiellement** et
 | Création et modification des fiches | **En test** | `createCompany()`, `updateCompany()`, `createBeneficiary()`, `updateBeneficiary()` : essais fictifs réalisés, validations de bout en bout à compléter. |
 | Association bénéficiaire–société | **En test** | `setBeneficiaryCompany()` : association/dissociation, vérification préalable non atomique, relecture après écriture. |
 | Événements : liste, détail et matériel affecté (P6.1) | **En test** | `bookingsInPeriod()` et `event()` intégrées à `main` par la PR #9 ; CI simulée et formes observées sur une instance SaaS, **pas encore publiées dans une version taguée**. |
-| Autres ressources Loxya | **En projet** | Recherche globale d'événements, listes paginées, catalogue matériel et parcs : à étudier séparément. |
+| Prix catalogue et fiche matériel (P6.2) | **En test** | Lecture du champ `material.rental_price` dans `event()` si présent ; `material($id)` pour lire une fiche catalogue par ID. Route connue du code Loxya, tests simulés ; recette SaaS de `material()` à effectuer. |
+| Autres ressources Loxya | **En projet** | Recherche globale d'événements, listes paginées et consultation du catalogue complet, parcs : à étudier séparément. |
 | Version `v0.1.0` | **Préversion publiée** | [Release GitHub](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.1.0) sur le commit `efa99bf8` ; contacts, sans méthodes P6.1. |
-| Version `v0.2.0` | **En projet** | Préparation d'une version intégrant les lectures d'événements P6.1 ; aucun tag ni release à ce jour. |
+| Version `v0.2.0` | **En projet** | Préparation d'une version intégrant les lectures P6.1 et P6.2 ; aucun tag ni release à ce jour. |
 | Packagist | **En projet** | Installation depuis GitHub/VCS ; inscription Packagist non décidée. |
 
 **Lecture des statuts :** **Validé** = fonctionnalités testées en CI avec un transport simulé et observées lors d'un premier POC SaaS ; **En test** = méthodes déjà présentes, mais recette SaaS systématique encore incomplète ; **En projet** = non implémenté ou non publié. Une validation du SDK ne garantit **pas** la stabilité des routes internes de Loxya.
@@ -129,6 +130,8 @@ Si votre application conserve ses secrets dans un coffre ou un autre système de
 | `company($id)` | Lire une fiche société |
 | `createCompany($fields)` / `updateCompany($id, $fields)` | Créer / modifier une société |
 | `setBeneficiaryCompany($beneficiaryId, $companyId, $expectedCompanyId)` | Associer / dissocier un bénéficiaire et une société |
+| `bookingsInPeriod($startDate, $endDate)` / `event($id)` | Lire les événements d'une période, leurs fiches et leur matériel réservé (P6.1, non tagué) |
+| `material($id)` | Lire une fiche catalogue de matériel par ID, y compris le prix catalogue s'il est fourni (P6.2, non tagué) |
 
 Le **[contrat de lecture des contacts](docs/CONTRAT-LECTURE-CONTACTS.md)** décrit les champs connus, les identifiants propres aux deux types de fiches, la relation `company_id`, les données manquantes et le protocole de recette SaaS en lecture seule. Le **[contrat de confirmation des écritures](docs/CONTRAT-ECRITURES-CONTACTS.md)** précise les garanties et limites des POST/PUT, notamment les résultats incertains.
 
@@ -164,12 +167,37 @@ foreach ($bookings as $booking) {
     foreach ($materials as $line) {
         $reference = $line['reference'] ?? null;
         $quantity = $line['quantity'] ?? null;
+        // Prix catalogue actuel si expose par Loxya, sans calcul de facturation.
+        $rentalPrice = $line['material']['rental_price'] ?? null;
         // Integrer ces informations selon les besoins de l'application.
     }
 }
 ```
 
-Les routes de recherche courte, de pagination globale, de disponibilité du catalogue et les variantes des fiches bookings restent à étudier : elles ne sont **pas** ajoutées dans cette première étape. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md) et la [recette générique P6.1](docs/RECETTE-INTEGRATEUR-P6.md) avant une mise à jour d'application.
+### P6.2 — Prix catalogue du matériel (candidat non publié)
+
+La lecture d'un événement restitue déjà les données brutes de chaque ligne `materials`. Quand Loxya inclut `materials[*].material.rental_price`, c'est le **prix catalogue de location du matériel**, distinct du tarif éventuellement saisi sur l'événement (`unit_price`). Aucune nouvelle requête n'est nécessaire dans ce cas. Les champs `rental_price` et `replacement_price` sont facultatifs : conserver la différence entre absent, `null` et un montant (`string` ou `number` selon la réponse SaaS).
+
+Pour consulter une fiche catalogue indépendamment d'un événement, une méthode de lecture simple est ajoutée :
+
+| Méthode candidate | Route | Réponse |
+|---|---|---|
+| `material(int $id)` | `GET /api/materials/{id}` | Fiche JSON brute d'un article ; `rental_price` et `replacement_price` lorsqu'ils sont exposés |
+
+```php
+$material = $client->material(103);
+$prixCatalogue = $material['rental_price'] ?? null; // valeur source ou null
+
+$event = $client->event(42);
+foreach ($event['materials'] ?? [] as $line) {
+    $prixCatalogue = $line['material']['rental_price'] ?? null;
+    // Ne pas utiliser $line['unit_price'] pour le prix catalogue.
+}
+```
+
+La méthode `material()` renvoie les valeurs de Loxya **sans arrondi, conversion monétaire, calcul de dégressivité, remise ou total d'événement**. La route existe dans le code public de Loxya ; son comportement avec les droits de l'instance SaaS devra être confirmé en DEV. Cette nouvelle méthode est sur la branche de développement du SDK ; elle n'est ni dans le tag `v0.1.0` ni encore publiée dans `v0.2.0`.
+
+Les routes de recherche courte, de pagination globale, de liste complète du catalogue, de disponibilités et les variantes des fiches bookings restent à étudier. Lire le [contrat P6.1](docs/CONTRAT-LECTURE-EVENEMENTS.md), le [contrat P6.2](docs/CONTRAT-LECTURE-MATERIEL.md) et la [recette générique P6](docs/RECETTE-INTEGRATEUR-P6.md) avant une mise à jour d'application.
 
 ## Fonctionnement et limites
 
