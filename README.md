@@ -1,6 +1,6 @@
 # Loxya PHP Client
 
-Bibliothèque PHP non officielle pour accéder depuis une application PHP aux routes HTTP internes de [Loxya](https://loxya.com/). Elle encapsule l'authentification, le transport HTTPS, les méthodes des ressources prises en charge et le traitement des erreurs. **Les sociétés et les bénéficiaires sont les premières ressources implémentées**  ; les parcours de lecture d'événements et de matériel ont également été validés sur une instance SaaS, les autres environnements restant en test. La bibliothèque n'est liée à aucun logiciel consommateur.
+Bibliothèque PHP non officielle pour accéder depuis une application PHP aux routes HTTP internes de [Loxya](https://loxya.com/). Elle encapsule l'authentification, le transport HTTPS, les méthodes des ressources prises en charge et le traitement des erreurs. **Les sociétés et les bénéficiaires sont les premières ressources implémentées** ; les parcours de lecture d'événements et de matériel ont également été validés sur une instance SaaS, les autres environnements restant en test. La bibliothèque n'est liée à aucun logiciel consommateur.
 
 Il s'agit d'un **client PHP (SDK)**, pas d'un serveur REST, d'une API publique officielle ni d'un proxy à déployer. Chaque application l'installe avec Composer, fournit sa propre configuration Loxya et traite les réponses selon ses besoins.
 
