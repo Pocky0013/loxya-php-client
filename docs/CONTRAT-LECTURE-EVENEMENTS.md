@@ -51,7 +51,7 @@ Chaque ligne observée a notamment :
 | `reference` | chaîne | Référence du matériel |
 | `name` | chaîne | Désignation |
 | `quantity` | entier | Quantité réservée pour cet événement |
-| `material` | objet | Détails du matériel lié (champs conservés sans transformation) |
+| `material` | objet | Détails du matériel lié (champs conservés sans transformation) ; prix catalogue `rental_price` lorsque disponible |
 
 Exemple **fictif** du contrat, sans valeur copiée depuis le SaaS :
 
@@ -72,6 +72,8 @@ Exemple **fictif** du contrat, sans valeur copiée depuis le SaaS :
 ```
 
 Un tableau `materials: []` signifie que la réponse ne contient aucune ligne affectée ; un champ `materials` absent ou de type inattendu ne doit pas être assimilé à un événement sans matériel.
+
+**Prix catalogue (P6.2) :** Loxya expose un champ `rental_price` dans le modèle du matériel et un champ `material` contextualisé dans les lignes d'événements. Si la réponse inclut `materials[*].material.rental_price`, celui-ci peut être lu directement comme **prix catalogue**, sans nouvelle requête. Ne pas le confondre avec `materials[*].unit_price` ou `unit_price_period` qui relèvent de la facturation de l'événement. Le SDK ne les calcule pas et ne les interprète pas. Les champs peuvent être absents ou `null` selon l'instance, la configuration de facturation et les droits ; le SDK conserve ces différences. Voir [contrat P6.2](CONTRAT-LECTURE-MATERIEL.md).
 
 ### Routes à ne pas confondre
 

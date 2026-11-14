@@ -1,6 +1,6 @@
-# Recette d'intégration P6.1 — lecture des événements et du matériel
+# Recette d'intégration P6.1 / P6.2 — événements, matériel et prix catalogue
 
-**Statut : protocole pour une application consommatrice en environnement de développement.** Pas d'accès en écriture ; les méthodes `bookingsInPeriod()` et `event()` sont disponibles sur le `main` du SDK, mais pas dans `v0.1.0`.
+**Statut : protocole pour une application consommatrice en environnement de développement.** Pas d'accès en écriture ; `bookingsInPeriod()` et `event()` sont sur `main`. `material()` est en préparation dans P6.2. Aucune de ces méthodes n'est dans le tag `v0.1.0`.
 
 ## 1. Préparer l'application
 
@@ -16,7 +16,10 @@
 4. Vérifier que la fiche contient `materials` sous forme de **liste** ; si ce champ est absent, noter **« réponse non conforme ou droits insuffisants »**, pas **« aucun matériel »**.
 5. Pour une fiche contenant du matériel, vérifier le type des champs `id`, `reference`, `name`, `quantity` et `material` ; constater la quantité d'au moins une ligne, sans publier de valeurs privées.
 6. Répéter avec une période sans événements ou un événement sans matériel si cela est possible sans modifier les données.
-7. Tester le comportement des permissions et erreurs dans un contexte autorisé, sans retirer des droits existants ni forcer des échecs d'authentification.
+7. Pour une ligne contenant un objet `material`, relever uniquement si `rental_price` est présent, son type (`string`, nombre ou `null`) et si la valeur correspond au prix catalogue connu. Ne pas relever de prix privés ni de réponse brute dans les rapports de test.
+8. Avec un ID fictif ou une référence autorisée, tester `material($id)` et vérifier si `rental_price` et `replacement_price` sont retournés. Comparer le prix catalogue de la fiche à celui du matériel imbriqué dans l'événement, sans calculer de total ni exploiter `unit_price`.
+9. Tester un article sans tarif si possible ; distinguer **champ absent** et **champ `null`**. Un tarif nul ne doit pas être interprété automatiquement comme zéro.
+10. Tester le comportement des permissions et erreurs dans un contexte autorisé, sans retirer des droits existants ni forcer des échecs d'authentification.
 
 Ne pas lancer une série de centaines de lectures sur de larges périodes. Ne pas enregistrer la réponse complète d'un événement dans les logs ou la CI : elle peut comporter contacts, prix, collaborateurs et informations commerciales.
 
@@ -25,6 +28,9 @@ Ne pas lancer une série de centaines de lectures sur de larges périodes. Ne pa
 - [ ] Requête par période réussie avec liste d'événements.
 - [ ] Lecture détaillée d'un événement réussie.
 - [ ] Matériel réservé accessible via `materials` avec `quantity` cohérente.
+- [ ] Champ prix catalogue observé (ou absence documentée) dans le matériel imbriqué de l'événement.
+- [ ] Fiche `material($id)` lisible en SaaS avec les droits de l'intégration, ou erreur explicitement notée.
+- [ ] Aucun prix de facturation calculé ou substitué au tarif catalogue.
 - [ ] Aucune écriture métier envoyée.
 - [ ] Aucune fuite de jeton ou de données personnelles dans les logs, GitHub ou les captures partagées.
 - [ ] Version exacte du SDK et résultat consignés de manière anonymisée.

@@ -6,12 +6,16 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 ### En préparation — `v0.2.0` (non publiée)
 
+- P6.2 : `material(int $id)` lit une fiche du catalogue via `GET /api/materials/{id}`, sans modification des données reçues.
+- P6.2 : documentation de `materials[*].material.rental_price` dans les événements et de `rental_price` / `replacement_price` sur les fiches catalogue. Aucun calcul de prix d'événement, de remise ou de dégressivité.
+- P6.2 : tests simulés pour prix absent/nul, distinction catalogue/facturation, identifiants, 401, 403/404, formats invalides et signature publique ; confirmation SaaS encore nécessaire.
+
 - Lecture de la liste des bookings sur une période via `bookingsInPeriod(string $startDate, string $endDate)` : réponse JSON à la racine, non paginée.
 - Lecture de la fiche complète d'un événement avec `event(int $id)` : le tableau `materials` contient les références et quantités affectées.
 - Tests de transport simulé pour le parcours liste → détail → matériel, validation des dates, erreurs de lecture et compatibilité des signatures.
 - Contrat documenté à partir de deux routes observées dans des traces SaaS autorisées, sans conserver de données réelles dans Git.
 
-**En test :** ces méthodes sont fusionnées dans `main` depuis la PR #9 mais ne font pas partie de `v0.1.0`. Les recherches globales, paginations et autres routes non confirmées restent hors de ce périmètre. Aucun appel HTTP d'écriture n'est ajouté. Le futur tag `v0.2.0` n'a pas été créé.
+**En test :** les méthodes P6.1 sont fusionnées dans `main` depuis la PR #9 ; la méthode P6.2 est candidate en PR. Aucune ne fait partie de `v0.1.0`. Les recherches globales, paginations et autres routes non confirmées restent hors de ce périmètre. Aucun appel HTTP d'écriture n'est ajouté. Le futur tag `v0.2.0` n'a pas été créé.
 
 ## [0.1.0] - 2026-11-12
 
