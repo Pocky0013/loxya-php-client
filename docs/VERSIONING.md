@@ -8,7 +8,7 @@ Le code source est public sous **PolyForm Internal Use License 1.0.0**, avec le 
 
 ## Numérotation
 
-Les versions utilisent des **tags Git annotés** `vMAJEUR.MINEUR.CORRECTIF`. Le tag `v0.1.0` est reconnu par Composer comme `0.1.0`. Il ne faut **pas** ajouter une propriété `version` dans `composer.json`.
+Les versions utilisent des tags Git `vMAJEUR.MINEUR.CORRECTIF`, reconnus par Composer sans propriété `version` dans `composer.json`. **Historique :** `v0.1.0` et `v0.2.0` ont été créés comme tags légers sur GitHub. Pour les prochaines versions, le [workflow GitHub Actions](PUBLICATION-GITHUB-ACTIONS.md) créera des **tags annotés**, sans modifier les tags déjà publiés.
 
 | Type d'évolution | Avant 1.0 | Exemple |
 |---|---|---|
@@ -25,7 +25,7 @@ Les versions 0.x restent expérimentales, mais **les changements incompatibles s
 - `Transport::send()`, `CurlTransport`, `HttpResponse`.
 - `LoxyaException`, `HttpException`, `ProtocolException`, `TransportException` et `WriteNotConfirmedException`.
 
-Les méthodes `bookingsInPeriod()`, `event()` et `material(int $id)` sont présentes sur `main` et composent le **périmètre de `v0.2.0` en préparation de publication**. Leur lecture a été vérifiée sur l'instance SaaS Electraudio le 14 novembre 2026 (révision `5a0501b`), mais les cas limites et les autres instances restent en test. Elles ne sont pas disponibles dans le tag `v0.1.0` ; l'ajout de ces méthodes est compatible avec les signatures existantes.
+Les méthodes `bookingsInPeriod()`, `event()` et `material(int $id)` sont **publiées depuis `v0.2.0`**. Leur lecture a été vérifiée sur l'instance SaaS Electraudio le 14 novembre 2026 (révision `5a0501b`), mais les cas limites et les autres instances restent en test. Elles ne sont pas disponibles dans le tag `v0.1.0` ; l'ajout de ces méthodes est compatible avec les signatures existantes.
 
 Le contrôle hors réseau `composer api-check` surveille les noms, paramètres (y compris ceux utilisables en arguments nommés), types, valeurs par défaut, types de retour et certaines propriétés des exceptions.
 
@@ -37,7 +37,7 @@ Ce test **ne garantit pas** la stabilité du JSON distant, ni le comportement du
 2. CI verte sur PHP 8.2, 8.4 et 8.5, validation Composer stricte et `composer api-check`.
 3. Revue de sécurité et de compatibilité avec les applications consommatrices.
 4. Recette SaaS contrôlée sur une instance autorisée lorsque nécessaire ; maintenir les fonctionnalités non confirmées au statut **En test**.
-5. **Accord explicite** sur le commit et le tag avant publication ; GitHub Release éventuelle seulement après l'accord.
+5. **Accord explicite** sur le commit de `main` et la version ; lancer d'abord le mode `verifier` du workflow, puis le mode `publier` après validation. Le tag annoté et la GitHub Release ne sont créés que par ce second mode.
 6. Publication Packagist éventuelle comme **décision séparée**, après vérification des droits et conditions applicables.
 
-Le paquet est installable depuis GitHub via le tag expérimental `v0.1.0` (`^0.1.0` dans Composer) ou via `dev-main` pour un développement explicitement suivi. La version `v0.2.0` reste indisponible via contrainte taguée tant que le tag Git annoté n'existe pas. Chaque application doit verrouiller la révision dans son propre `composer.lock` ; une contrainte `^0.1.0` ne monte pas automatiquement vers `0.2.x`. Aucun déploiement d'application ne fait partie de ce processus.
+Le paquet est installable depuis GitHub via les tags publiés `v0.1.0` et `v0.2.0` (`^0.2.0` dans Composer pour les fonctions P6), ou via `dev-main` pour un développement explicitement suivi. Le [workflow de publication manuelle](PUBLICATION-GITHUB-ACTIONS.md) sera utilisé pour les futures versions après fusion sur `main` et accord explicite. Chaque application doit verrouiller la révision dans son propre `composer.lock` ; une contrainte `^0.1.0` ne monte pas automatiquement vers `0.2.x`. Aucun déploiement d'application ne fait partie de ce processus.
