@@ -27,6 +27,8 @@ Les versions 0.x restent expérimentales, mais **les changements incompatibles s
 
 Les méthodes `bookingsInPeriod()`, `event()` et `material(int $id)` sont **publiées depuis `v0.2.0`**. Leur lecture a été vérifiée sur l'instance SaaS Electraudio le 14 novembre 2026 (révision `5a0501b`), mais les cas limites et les autres instances restent en test. Elles ne sont pas disponibles dans le tag `v0.1.0` ; l'ajout de ces méthodes est compatible avec les signatures existantes.
 
+Les méthodes de lecture de techniciens, rôles, assignations, catégories et barèmes ont été ajoutées pour **v0.3.0** sans changer les signatures précédentes. Leur validation reste **En test** jusqu'à une recette SaaS sur une instance autorisée.
+
 Le contrôle hors réseau `composer api-check` surveille les noms, paramètres (y compris ceux utilisables en arguments nommés), types, valeurs par défaut, types de retour et certaines propriétés des exceptions.
 
 Ce test **ne garantit pas** la stabilité du JSON distant, ni le comportement du SaaS. Les détails de lecture et d'écriture sont décrits dans `CONTRAT-LECTURE-CONTACTS.md` et `CONTRAT-ECRITURES-CONTACTS.md`.

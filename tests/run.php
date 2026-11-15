@@ -1013,4 +1013,144 @@ test('P6.2 : reponses JSON invalides pour une fiche materiel rejetees', function
     }
 });
 
+
+test('Lectures associees : categories, sous-categories, roles et paliers conserves', function (): void {
+    $cats = [
+        ['id' => 3, 'name' => 'Lumiere', 'sub_categories' => [
+            ['id' => 12, 'category_id' => 3, 'name' => 'Projecteurs'],
+        ]],
+        ['id' => 4, 'name' => 'Audio', 'sub_categories' => []],
+    ];
+    $roles = [['id' => 7, 'name' => 'Technicien son'], ['id' => 8, 'name' => 'Regisseur']];
+    $rates = [
+        ['id' => 1, 'name' => 'Standard', 'is_used' => true, 'tiers' => [
+            ['from_day' => 1, 'is_rate' => true, 'value' => '100'],
+            ['from_day' => 3, 'is_rate' => false, 'value' => '2.00'],
+        ]],
+    ];
+    $f = login(new FakeTransport())
+        ->queue('GET', '/categories', 200, $cats)
+        ->queue('GET', '/roles', 200, $roles)
+        ->queue('GET', '/degressive-rates', 200, $rates);
+    $client = client($f);
+    ensure($client->categories() === $cats, 'Noms ou sous-categories perdus');
+    ensure($client->roles() === $roles, 'Noms des roles perdus');
+    ensure($client->degressiveRates() === $rates, 'Tiers et modes degressifs modifies');
+    ensure($f->remaining() === 0, 'Appels catalogue en trop');
+});
+
+test('Techniciens et assignations : identifiants des pivots et relations imbriquees', function (): void {
+    $role = ['id' => 7, 'name' => 'Technicien son'];
+    $technician = ['id' => 9, 'first_name' => 'Alex', 'last_name' => 'Martin',
+        'full_name' => 'Alex Martin', 'roles' => [$role]];
+    $assignment = [
+        'id' => 811, 'event_id' => 42, 'technician_id' => 9,
+        'period' => ['start' => '2027-05-11 08:00:00', 'end' => '2027-05-11 17:00:00',
+            'isFullDays' => false],
+        'role' => $role,
+        'event' => ['id' => 42, 'title' => 'Exemple evenement'],
+    ];
+    $forEvent = $assignment;
+    unset($forEvent['event']);
+    $forEvent['technician'] = $technician;
+    $list = ['data' => [$technician], 'pagination' => ['page' => 1, 'limit' => 30]];
+    $query = '/technicians?page=1&limit=30&search=Alex';
+    $f = login(new FakeTransport())
+        ->queue('GET', $query, 200, $list)
+        ->queue('GET', '/technicians/9', 200, $technician)
+        ->queue('GET', '/technicians/9/events', 200, [$assignment])
+        ->queue('GET', '/events/42', 200, ['id' => 42, 'technicians' => [$forEvent]]);
+    $client = client($f);
+    ensure($client->technicians(1, 30, 'Alex') === $list, 'Recherche de techniciens non conforme');
+    ensure($client->technician(9) === $technician, 'Fiche technicien transformee');
+    ensure($client->technicianAssignments(9) === [$assignment], 'Assignations du technicien transformees');
+    ensure($client->eventAssignments(42) === [$forEvent], 'Assignations de evenement transformees');
+    ensure($f->remaining() === 0, 'Appels de relations inattendus');
+});
+
+test('Assignations de periode : sous-objets par technicien et periode source', function (): void {
+    $periodQuery = '/technicians/with-assignments?paginated=0&period%5Bstart%5D=2027-05-01&period%5Bend%5D=2027-05-31';
+    $role = ['id' => 7, 'name' => 'Technicien son'];
+    $assign = [
+        'id' => 811, 'event_id' => 42, 'technician_id' => 9,
+        'period' => ['start' => '2027-05-11 08:00:00', 'end' => '2027-05-11 17:00:00'],
+        'role' => $role, 'event' => ['id' => 42, 'title' => 'Exemple evenement'],
+    ];
+    $technicians = [
+        ['id' => 9, 'roles' => [$role], 'events' => [$assign]],
+        ['id' => 10, 'roles' => [], 'events' => []],
+    ];
+    $f = login(new FakeTransport())->queue('GET', $periodQuery, 200, $technicians);
+    ensure(client($f)->techniciansWithAssignmentsInPeriod('2027-05-01', '2027-05-31') === $technicians,
+        'Assignations de periode ou techniciens sans engagement modifies');
+    ensure($f->remaining() === 0, 'Appels de periode supplementaires');
+});
+
+test('Listes liees : liste vide permise mais champs imbriques incomplets refuses', function (): void {
+    $f = login(new FakeTransport())
+        ->queue('GET', '/roles', 200, [])
+        ->queue('GET', '/categories', 200, [['id' => 3, 'name' => 'Audio']])
+        ->queue('GET', '/degressive-rates', 200, [['id' => 1, 'name' => 'Standard']]);
+    $c = client($f);
+    ensure($c->roles() === [], 'Liste de roles vide refusee');
+    foreach ([
+        fn () => $c->categories(),
+        fn () => $c->degressiveRates(),
+    ] as $call) {
+        try { $call(); } catch (ProtocolException) { continue; }
+        throw new RuntimeException('Relation manquante acceptee comme liste vide');
+    }
+    ensure($f->remaining() === 0, 'Appels supplementaires incorrects');
+});
+
+test('Assignations : erreur sur role ou periode absent, sans retour vide fictif', function (): void {
+    $query = '/technicians/with-assignments?paginated=0&period%5Bstart%5D=2027-05-01&period%5Bend%5D=2027-05-31';
+    $f = login(new FakeTransport())
+        ->queue('GET', '/technicians/9/events', 200, [
+            ['id' => 811, 'event_id' => 42, 'technician_id' => 9,
+                'period' => ['start' => '2027-05-11 08:00:00', 'end' => '2027-05-11 17:00:00'],
+                'event' => ['id' => 42, 'title' => 'Exemple']],
+        ])
+        ->queue('GET', $query, 200, [['id' => 9, 'roles' => []]]);
+    $c = client($f);
+    foreach ([
+        fn () => $c->technicianAssignments(9),
+        fn () => $c->techniciansWithAssignmentsInPeriod('2027-05-01', '2027-05-31'),
+    ] as $call) {
+        try { $call(); } catch (ProtocolException) { continue; }
+        throw new RuntimeException('Assignations incompletes acceptees');
+    }
+    ensure($f->remaining() === 0, 'Requetes additionnelles en cas de schema incorrect');
+});
+
+test('Lectures de relations : ID/date invalides, HTTP 416 et renouvellement 401', function (): void {
+    $f = new FakeTransport();
+    $c = client($f);
+    foreach ([
+        fn () => $c->technician(0),
+        fn () => $c->technicianAssignments(-1),
+        fn () => $c->eventAssignments(0),
+        fn () => $c->techniciansWithAssignmentsInPeriod('2027-02-30', '2027-03-01'),
+        fn () => $c->techniciansWithAssignmentsInPeriod('2027-05-31', '2027-05-01'),
+    ] as $call) {
+        try { $call(); } catch (InvalidArgumentException) { continue; }
+        throw new RuntimeException('Parametre de lecture invalide accepte');
+    }
+    ensure($f->calls === [], 'Requete envoyee malgre parametre invalide');
+    $query = '/technicians/with-assignments?paginated=0&period%5Bstart%5D=2027-01-01&period%5Bend%5D=2027-12-31';
+    $f = login(new FakeTransport())->queue('GET', $query, 416, ['error' => 'too_long']);
+    try {
+        client($f)->techniciansWithAssignmentsInPeriod('2027-01-01', '2027-12-31');
+        throw new RuntimeException('HTTP 416 masque');
+    } catch (HttpException $e) {
+        ensure($e->status === 416 && $e->path === '/technicians/with-assignments', 'HTTP 416 degrade');
+    }
+    $f = login(new FakeTransport())
+        ->queue('GET', '/roles', 401, ['error' => 'expired'])
+        ->queue('POST', '/session', 200, ['token' => 'RENEWED'])
+        ->queue('GET', '/roles', 200, [['id' => 7, 'name' => 'Technicien son']]);
+    ensure(client($f)->roles()[0]['name'] === 'Technicien son', 'Reconnexion GET echouee');
+    ensure($f->remaining() === 0, 'Rejeu supplementaire de GET');
+});
+
 echo $testCount." tests isoles reussis (aucune requete reseau).\n";

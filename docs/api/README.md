@@ -11,13 +11,21 @@ Les méthodes ci-dessous appartiennent à `Electraudio\Loxya\Client`. On obtient
 | `session()` | Session sans JWT · fiche | [Session](SESSION.md) |
 | `bookingsInPeriod(string $startDate, string $endDate)` | Bookings d'une période · liste | [Événements](EVENEMENTS.md) |
 | `event(int $id)` | Fiche d'événement et matériel · fiche | [Événements](EVENEMENTS.md) |
+| `technicians(int $page = 1, int $limit = 30, ?string $search = null)` | Liste et recherche de techniciens et leurs rôles · `data` + `pagination` | [Techniciens](TECHNICIENS.md) |
+| `technician(int $id)` | Fiche technicien et rôles associés | [Techniciens](TECHNICIENS.md) |
+| `technicianAssignments(int $id)` | Assignations d'un technicien, avec périodes, rôles, événements · liste | [Techniciens](TECHNICIENS.md) |
+| `techniciansWithAssignmentsInPeriod(string $startDate, string $endDate)` | Techniciens et assignations des événements en période · liste | [Techniciens](TECHNICIENS.md) |
+| `eventAssignments(int $id)` | Assignations de l'événement et techniciens liés · liste | [Techniciens](TECHNICIENS.md) |
+| `roles()` | Libellés et identifiants de rôles · liste | [Techniciens](TECHNICIENS.md) |
+| `categories()` | Catégories et sous-catégories · liste | [Catégories](CATEGORIES.md) |
+| `degressiveRates()` | Barèmes et paliers dégressifs · liste | [Dégressivité](DEGRESSIVITE.md) |
 | `material(int $id)` | Fiche catalogue et prix · fiche | [Matériel](MATERIEL.md) |
 | `companies(int $page = 1, int $limit = 30, ?string $search = null)` | Liste/recherche de sociétés · `data` + `pagination` | [Sociétés](SOCIETES.md) |
 | `company(int $id)` | Fiche société | [Sociétés](SOCIETES.md) |
 | `beneficiaries(int $page = 1, int $limit = 30, ?string $search = null)` | Liste/recherche de bénéficiaires · `data` + `pagination` | [Bénéficiaires](BENEFICIAIRES.md) |
 | `beneficiary(int $id)` | Fiche bénéficiaire | [Bénéficiaires](BENEFICIAIRES.md) |
 
-Les lectures d'événements et de matériel ont été validées sur **une instance SaaS** ; la compatibilité avec d'autres instances reste en test.
+Les lectures d'événements et de matériel ont été validées sur **une instance SaaS** ; les nouvelles lectures des techniciens, catégories et barèmes sont **en test** (validation du code public de Loxya et tests simulés, pas encore de recette SaaS).
 
 ## Écritures sur les contacts
 

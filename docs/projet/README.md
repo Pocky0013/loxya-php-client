@@ -14,6 +14,8 @@ Cet espace conserve les décisions, les contrats HTTP internes, les recettes Saa
 - [Création / modification des contacts](contrats/CONTRAT-ECRITURES-CONTACTS.md)
 - [Lecture des événements](contrats/CONTRAT-LECTURE-EVENEMENTS.md)
 - [Lecture du matériel et des tarifs](contrats/CONTRAT-LECTURE-MATERIEL.md)
+- [Techniciens, rôles et assignations](contrats/CONTRAT-LECTURE-TECHNICIENS.md)
+- [Catégories et barèmes dégressifs](contrats/CONTRAT-LECTURE-REFERENTIELS.md)
 
 ## Recettes
 - [Procédure de recette SaaS](recettes/RECETTE-SAAS.md)

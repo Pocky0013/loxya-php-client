@@ -43,6 +43,9 @@ Le SDK ne charge pas de fichier `.env` lui-même. Voir le [guide d'installation]
 | Authentification et session | **Validé** | [`session()`](docs/api/SESSION.md) |
 | Liste des bookings et détail des événements | **Validé sur une instance SaaS** | [`bookingsInPeriod()`, `event()`](docs/api/EVENEMENTS.md) |
 | Fiche et tarif catalogue du matériel | **Validé sur une instance SaaS** | [`material()`](docs/api/MATERIEL.md) |
+| Techniciens, rôles et assignations | **En test** | [`technicians()`, `technicianAssignments()`, `eventAssignments()`](docs/api/TECHNICIENS.md) |
+| Catégories et sous-catégories | **En test** | [`categories()`](docs/api/CATEGORIES.md) |
+| Barèmes dégressifs | **En test** | [`degressiveRates()`](docs/api/DEGRESSIVITE.md) |
 | Lecture des sociétés | **Disponible** | [`companies()`, `company()`](docs/api/SOCIETES.md) |
 | Lecture des bénéficiaires | **Disponible** | [`beneficiaries()`, `beneficiary()`](docs/api/BENEFICIAIRES.md) |
 | Création, modification et association de contacts | **En test** | [Méthodes d'écriture](docs/api/README.md#ecritures-sur-les-contacts) |
@@ -55,11 +58,13 @@ Le SDK ne charge pas de fichier `.env` lui-même. Voir le [guide d'installation]
 - **[Référence de toutes les méthodes PHP](docs/api/README.md)** — paramètres, exemple, retour, erreurs.
 - [Installation et configuration](docs/guides/DEMARRAGE.md).
 - [Exemple PHP : consulter les événements et leur matériel](docs/guides/SCENARIOS.md).
+- [Techniciens, affectations et rôles](docs/api/TECHNICIENS.md).
+- [Catégories et sous-catégories](docs/api/CATEGORIES.md), [barèmes dégressifs](docs/api/DEGRESSIVITE.md).
 - [Sommaire de la documentation](docs/README.md).
 - [Mémoire technique et suivi du projet](docs/projet/README.md) — contrats, recettes, architecture et publications.
 
 ## Version et licence
 
-Préversion actuelle : **[v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0)** (inclut événements et matériel ; `v0.1.0` ne les inclut pas). Pour suivre des travaux non publiés, `dev-main` reste disponible volontairement. Voir le [changelog](CHANGELOG.md).
+Les versions expérimentales sont disponibles dans [Releases](https://github.com/Pocky0013/loxya-php-client/releases). **v0.2.0** ajoute les événements et le matériel ; **v0.3.0** est la version prévue pour les référentiels, techniciens et assignations (disponible après création effective de son tag). Voir le [changelog](CHANGELOG.md) et la [procédure de publication](docs/projet/publications/PUBLICATION-GITHUB-ACTIONS.md).
 
 Licence [PolyForm Internal Use License 1.0.0](LICENSE.md) : code source disponible mais **non open source OSI**. Utilisation et adaptation internes autorisées ; redistribution / commercialisation soumises à autorisation distincte. Copyright © 2026 Electraudio Sàrl.

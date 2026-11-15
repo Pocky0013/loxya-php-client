@@ -14,6 +14,9 @@ Le SDK fournit des **méthodes PHP**, pas une API HTTP officielle à appeler dir
 | --- | --- |
 | Session | [`session()`](api/SESSION.md) |
 | Événements | [`bookingsInPeriod()` et `event()`](api/EVENEMENTS.md) |
+| Techniciens et rôles | [Listes, fiches et assignations](api/TECHNICIENS.md) |
+| Catégories | [Libellés et sous-catégories](api/CATEGORIES.md) |
+| Barèmes de location | [Tarifs dégressifs et paliers](api/DEGRESSIVITE.md) |
 | Matériel | [`material()` et prix catalogue](api/MATERIEL.md) |
 | Sociétés | [Lecture et écritures](api/SOCIETES.md) |
 | Bénéficiaires | [Lecture, écritures et association](api/BENEFICIAIRES.md) |
