@@ -36,6 +36,8 @@ jobs:
         run: php tests/run.php
       - name: Verifier le contrat public PHP sans acces SaaS
         run: php tests/public-api.php
+      - name: Verifier la reference PHP et les liens Markdown
+        run: php tests/docs.php
       - name: Verifier le mode aide sans acces SaaS
         run: php bin/loxya-read-check.php --help
       - name: Valider le controle de publication (sans acces SaaS)

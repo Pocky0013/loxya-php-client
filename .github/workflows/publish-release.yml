@@ -142,7 +142,7 @@ jobs:
             --verify-tag
             --fail-on-no-commits
             --title "Loxya PHP Client $VERSION"
-            --notes-file "docs/RELEASE-NOTES-$VERSION.md"
+            --notes-file "docs/projet/publications/RELEASE-NOTES-$VERSION.md"
             --target "$GITHUB_SHA"
           )
           if [[ "$PRERELEASE" == "true" ]]; then

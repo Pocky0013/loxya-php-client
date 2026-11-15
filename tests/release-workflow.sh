@@ -5,7 +5,7 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-mkdir -p "$work/scripts" "$work/docs"
+mkdir -p "$work/scripts" "$work/docs/projet/publications"
 cp "$repo_dir/scripts/release-check.sh" "$work/scripts/release-check.sh"
 
 cat > "$work/CHANGELOG.md" <<'EOF'
@@ -14,7 +14,7 @@ cat > "$work/CHANGELOG.md" <<'EOF'
 ## [0.3.0] - 2026-11-14
 - Modifications fictives.
 EOF
-cat > "$work/docs/RELEASE-NOTES-v0.3.0.md" <<'EOF'
+cat > "$work/docs/projet/publications/RELEASE-NOTES-v0.3.0.md" <<'EOF'
 # Loxya PHP Client v0.3.0
 Notes de publication fictives.
 EOF
@@ -29,13 +29,13 @@ for version in 0.3.0 v0.03.0 v0.3 v0.3.0-extra v0.3.1; do
 done
 
 printf '## [0.3.0] - 2026-11-14\n' > "$work/CHANGELOG.md"
-printf '# Notes candidates Loxya PHP Client v0.3.0\n' > "$work/docs/RELEASE-NOTES-v0.3.0.md"
+printf '# Notes candidates Loxya PHP Client v0.3.0\n' > "$work/docs/projet/publications/RELEASE-NOTES-v0.3.0.md"
 if (cd "$work" && bash scripts/release-check.sh v0.3.0 >/dev/null 2>&1); then
     echo "Notes candidates erronees acceptees." >&2
     exit 1
 fi
 
-printf '# Loxya PHP Client v0.3.0\n' > "$work/docs/RELEASE-NOTES-v0.3.0.md"
+printf '# Loxya PHP Client v0.3.0\n' > "$work/docs/projet/publications/RELEASE-NOTES-v0.3.0.md"
 printf '## [Unreleased]\n' > "$work/CHANGELOG.md"
 if (cd "$work" && bash scripts/release-check.sh v0.3.0 >/dev/null 2>&1); then
     echo "Version absente du changelog acceptee." >&2
