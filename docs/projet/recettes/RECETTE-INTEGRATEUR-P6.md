@@ -27,7 +27,7 @@ Ne pas lancer une série de centaines de lectures sur de larges périodes. Ne pa
 
 - [x] `bookingsInPeriod()` : 16 bookings récupérés en novembre 2026, 16 événements reconnus.
 - [x] `event()` : 8 fiches détaillées récupérées, jusqu'à 42 lignes de matériel.
-- [x] `materials` : références, désignations et `quantity` récupérées pour les lignes observées. L'article particulier `SANS_Materiel` reste un article normal, sans filtrage métier par le SDK.
+- [x] `materials` : références, désignations et `quantity` récupérées pour les lignes observées. Les lignes sont restituées sans filtrage des références par le SDK.
 - [x] `materials[*].material.rental_price` : présent sur les 42 lignes de l'événement examiné, type `string` décimal.
 - [x] `material($id)` : une fiche catalogue réelle lue sur l'instance avec `rental_price` et `replacement_price` ; montants catalogue concordants entre deux lectures.
 - [x] `replacement_price` : chaîne décimale ou `null` sur les lignes examinées.
