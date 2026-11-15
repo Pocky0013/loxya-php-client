@@ -11,7 +11,7 @@
 - [ ] Vérifier la compatibilité des signatures publiques et les impacts sur les intégrateurs.
 - [ ] Mettre à jour le README et les contrats concernés ; ne mentionner **Validé** que pour des parcours confirmés.
 - [ ] Ajouter une entrée datée `## [X.Y.Z] - AAAA-MM-JJ` dans `CHANGELOG.md`, tout en conservant `## [Unreleased]`.
-- [ ] Créer `docs/RELEASE-NOTES-vX.Y.Z.md` avec titre, nouveautés, compatibilité, limites, statut de validation SaaS et consignes Composer. Retirer les mentions « notes candidates » de son en-tête.
+- [ ] Créer `docs/projet/publications/RELEASE-NOTES-vX.Y.Z.md` avec titre, nouveautés, compatibilité, limites, statut de validation SaaS et consignes Composer. Retirer les mentions « notes candidates » de son en-tête.
 - [ ] Ne versionner aucun identifiant, donnée client, capture SaaS ou secret.
 
 La politique de versionnement figure dans [VERSIONING.md](VERSIONING.md). Les routes Loxya sont internes et non officielles, indépendamment du numéro de version du paquet.
@@ -24,7 +24,7 @@ La politique de versionnement figure dans [VERSIONING.md](VERSIONING.md). Les ro
 - [ ] Décrire les recettes SaaS réellement réalisées ou les scénarios laissés **En test**.
 - [ ] Confirmer que **le commit exact** à publier a été identifié sur `main`.
 
-Le [workflow de publication](../.github/workflows/publish-release.yml) appelle directement la **même matrice CI** PHP 8.2 / 8.4 / 8.5, avec `composer validate --strict --no-check-publish`, `composer install`, tests PHP, syntaxe, vérification des signatures et tests du contrôle de release. Aucun accès SaaS n'est effectué.
+Le [workflow de publication](../../../.github/workflows/publish-release.yml) appelle directement la **même matrice CI** PHP 8.2 / 8.4 / 8.5, avec `composer validate --strict --no-check-publish`, `composer install`, tests PHP, syntaxe, vérification des signatures et tests du contrôle de release. Aucun accès SaaS n'est effectué.
 
 ## 3. Contrôle sans publication
 

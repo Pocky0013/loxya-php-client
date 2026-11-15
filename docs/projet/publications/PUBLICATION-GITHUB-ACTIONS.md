@@ -6,7 +6,7 @@ Le SDK est développé directement sur GitHub. **Aucun clone local, terminal ou 
 
 - `v0.1.0` : préversion publiée le 12 novembre 2026.
 - `v0.2.0` : préversion publiée le 14 novembre 2026, au commit `2b555ebbc8132ec813a401acb8a500bb2ba2da8d` (tag léger créé manuellement depuis GitHub). **Ne pas recréer ni déplacer ce tag.**
-- **Pour les versions suivantes** : le workflow [Publication manuelle du SDK](../.github/workflows/publish-release.yml) créera un **tag Git annoté** puis une GitHub Release, à partir du commit de `main` validé.
+- **Pour les versions suivantes** : le workflow [Publication manuelle du SDK](../../../.github/workflows/publish-release.yml) créera un **tag Git annoté** puis une GitHub Release, à partir du commit de `main` validé.
 
 **Une fusion sur `main` ne publie jamais automatiquement une version.** Il faut choisir explicitement `publier` dans GitHub Actions, après les vérifications. Le workflow `ci.yml` est réutilisé comme passage obligatoire : PHP 8.2, 8.4 et 8.5, validation Composer, syntaxe, tests simulés, signatures publiques, contrôle du CLI et test du contrôle de release.
 
@@ -16,7 +16,7 @@ Exemple pour une future `v0.3.0` :
 
 1. Finaliser et relire les fonctionnalités, leurs contrats et leurs tests, notamment les limites non vérifiées sur SaaS. Obtenir les autorisations de publication requises.
 2. Conserver la section `## [Unreleased]` de `CHANGELOG.md` et créer **avant la publication** une section datée `## [0.3.0] - AAAA-MM-JJ` contenant les changements concernés.
-3. Créer `docs/RELEASE-NOTES-v0.3.0.md`. Son titre doit inclure `Loxya PHP Client v0.3.0` et son début ne doit plus mentionner « notes candidates », « en préparation » ou « tag non publié ». Y résumer les ajouts, la compatibilité, les prérequis et les limites.
+3. Créer `docs/projet/publications/RELEASE-NOTES-v0.3.0.md`. Son titre doit inclure `Loxya PHP Client v0.3.0` et son début ne doit plus mentionner « notes candidates », « en préparation » ou « tag non publié ». Y résumer les ajouts, la compatibilité, les prérequis et les limites.
 4. Actualiser le README, les exemples et la documentation concernée. La Release antérieure reste inchangée et chaque tag publié demeure immuable.
 5. Faire passer la CI de la PR, la faire relire et fusionner **dans le SDK uniquement**, vers `main`.
 
@@ -40,7 +40,7 @@ Après accord explicite sur la **version** et le **commit de `main`** :
 1. Revenir dans **Actions** → **Publication manuelle du SDK** → **Run workflow**, branche **main**.
 2. Saisir la même version, choisir **`publier`** et laisser **`prerelease`** coché tant que le SDK reste expérimental.
 3. Le workflow vérifie à nouveau les documents et la version, exécute **tous les tests PHP sur le SHA exact** de l'exécution, puis vérifie que `main` n'a pas changé.
-4. Il crée et pousse le tag **annoté** `vX.Y.Z` sur ce SHA, et crée la GitHub Release portant le même nom à partir de `docs/RELEASE-NOTES-vX.Y.Z.md`.
+4. Il crée et pousse le tag **annoté** `vX.Y.Z` sur ce SHA, et crée la GitHub Release portant le même nom à partir de `docs/projet/publications/RELEASE-NOTES-vX.Y.Z.md`.
 5. Vérifier dans **Releases** le tag, le commit, la préversion et les notes publiées.
 
 La publication est **manuelle et explicite**, mais la création du tag et de la Release est automatique après les contrôles. Le job de publication dispose de `contents: write`, pas la CI de validation. Le workflow n'a pas besoin d'identifiants SaaS ni de jeton personnel : il utilise `GITHUB_TOKEN` pour GitHub.

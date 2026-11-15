@@ -35,4 +35,4 @@ composer require electraudio/loxya-php-client:^0.2.0
 
 La contrainte `^0.1.0` ne récupère pas automatiquement une version `0.2.x`. Chaque application consommatrice doit mettre à jour **son** `composer.lock`, tester en développement et utiliser sa propre procédure de déploiement. Aucune application n'est modifiée par la publication du SDK.
 
-Documentation : [contrat événements](CONTRAT-LECTURE-EVENEMENTS.md), [contrat matériel et prix catalogue](CONTRAT-LECTURE-MATERIEL.md), [recette de lecture P6.1/P6.2](RECETTE-INTEGRATEUR-P6.md), [politique de versionnement](VERSIONING.md).
+Documentation : [contrat événements](../contrats/CONTRAT-LECTURE-EVENEMENTS.md), [contrat matériel et prix catalogue](../contrats/CONTRAT-LECTURE-MATERIEL.md), [recette de lecture P6.1/P6.2](../recettes/RECETTE-INTEGRATEUR-P6.md), [politique de versionnement](VERSIONING.md).
