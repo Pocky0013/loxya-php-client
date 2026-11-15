@@ -1,8 +1,8 @@
-# Parcours : événements avec du matériel
+# Exemple PHP — événements et matériel associé
 
 [Accueil](../../README.md) · [API événements](../api/EVENEMENTS.md) · [API matériel](../api/MATERIEL.md)
 
-Objectif : obtenir les événements d'une période et identifier ceux dont la fiche comporte au moins une ligne de matériel réservé. Disponible depuis **v0.2.0**.
+Cet exemple montre comment **lire les bookings d'une période**, récupérer la fiche de chaque événement et consulter ses lignes de matériel lorsqu'elles sont disponibles. Il n'applique aucune règle métier ni filtre propre à une application. Méthodes disponibles depuis **v0.2.0**.
 
 ```php
 <?php
@@ -14,35 +14,39 @@ $client = Factory::fromEnvironment();
 $bookings = $client->bookingsInPeriod('2027-05-01', '2027-05-31');
 
 foreach ($bookings as $booking) {
+    // Les bookings peuvent correspondre à plusieurs types de ressources.
     if (($booking['entity'] ?? null) !== 'event') {
         continue;
     }
+
     $id = $booking['id'] ?? null;
     if (!is_int($id) || $id < 1) {
         continue;
     }
 
     $event = $client->event($id);
-    $materials = $event['materials'] ?? null;
-    if (!is_array($materials) || !array_is_list($materials)) {
-        continue; // Format inconnu, pas une preuve de "sans matériel".
-    }
-    if ($materials === []) {
+    echo "Événement #{$id}\n";
+
+    if (!array_key_exists('materials', $event)
+        || !is_array($event['materials'])
+        || !array_is_list($event['materials'])) {
+        // Champ absent ou structure inconnue : ne pas conclure à une liste vide.
+        echo "  Matériel : information indisponible\n";
         continue;
     }
 
-    echo "Événement #{$id} : " . count($materials) . " lignes\n";
-    foreach ($materials as $line) {
+    foreach ($event['materials'] as $line) {
         $reference = $line['reference'] ?? null;
         $quantity = $line['quantity'] ?? null;
-        $rentalPrice = $line['material']['rental_price'] ?? null;
-        // Valeurs brutes à utiliser selon les besoins de l'application.
+        $cataloguePrice = $line['material']['rental_price'] ?? null;
+
+        // Valeurs brutes issues de Loxya, à utiliser seulement si présentes.
     }
 }
 ```
 
-**Retour attendu :** `bookingsInPeriod()` renvoie une **liste** ; `event()` renvoie une **fiche** qui peut exposer `materials`. Les quantités, références et prix catalogue sont facultatifs dans les traitements défensifs.
+**Retours attendus :** `bookingsInPeriod()` renvoie une **liste** PHP de bookings ; `event($id)` renvoie une **fiche** associative ; `materials`, lorsqu'il est disponible et au format attendu, est une liste de lignes de matériel qui peut être **vide**.
 
-Une référence comme `SANS_Materiel` peut représenter un article valable sans objet physique. Le **filtrage métier** (par exemple les événements devant donner lieu à une offre Bexio) appartient à l'application consommatrice, **pas au SDK**. Le SDK ne crée ni offre ni synchronisation.
+Le SDK ne filtre pas les lignes selon leur référence, leur catégorie ou un usage métier : il restitue les données fournies par Loxya. Le champ `material.rental_price` est un **prix catalogue**, distinct du champ événementiel `unit_price` lorsqu'il existe.
 
-Le prix `material.rental_price` est un prix catalogue et ne doit pas être confondu avec `unit_price` propre à l'événement. Les dates et ID ci-dessus sont fictifs ; aucune garantie n'est donnée sur les champs supplémentaires.
+Les dates et identifiants sont fictifs. Voir les [formats de réponse](../api/EVENEMENTS.md) et les [tarifs catalogue](../api/MATERIEL.md).
