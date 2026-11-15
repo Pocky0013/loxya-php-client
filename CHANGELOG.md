@@ -6,6 +6,14 @@ Historique des évolutions du SDK PHP non officiel. Le format suit les principes
 
 - Refonte documentaire : référence PHP par méthode et guide de démarrage ; mémoire technique classée sous docs/projet/.
 
+## [0.3.0] - 2026-11-15
+
+- Ajout des lectures de techniciens, rôles et assignations : `technicians()`, `technician()`, `technicianAssignments()`, `techniciansWithAssignmentsInPeriod()`, `eventAssignments()` et `roles()`.
+- Lecture des catégories et sous-catégories de matériel avec leurs noms via `categories()` ; lecture des barèmes degressifs et paliers via `degressiveRates()`.
+- Préservation des relations imbriquées, des IDs de pivots d'assignation et des périodes natives, sans logique propre à une intégration externe.
+- Contrôles de schémas imbriqués et de paramètres, tests de transport simulé, mise à jour de la référence et du contrat public.
+- **Statut de validation : en test** pour ces nouvelles routes ; source vérifiée dans le code public Loxya, recette SaaS à réaliser. Les fonctions existantes ne sont pas modifiées.
+
 ## [0.2.0] - 2026-11-14
 
 **Préversion publiée le 14 novembre 2026** : [GitHub Release v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0), tag sur le commit `2b555ebbc8132ec813a401acb8a500bb2ba2da8d`.

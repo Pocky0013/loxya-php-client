@@ -72,6 +72,121 @@ final class Client
     }
 
     /**
+     * Liste les techniciens avec leurs rôles (réponse paginée).
+     * @return array{data:list<array<string,mixed>>,pagination:array<array-key,mixed>}
+     */
+    public function technicians(int $page = 1, int $limit = 30, ?string $search = null): array
+    {
+        $result = $this->getListing('/technicians', $page, $limit, $search);
+        foreach ($result['data'] as $technician) {
+            self::requireRoles($technician);
+        }
+        return $result;
+    }
+
+    /** Lit la fiche brute d'un technicien, y compris ses rôles déclarés. */
+    public function technician(int $id): array
+    {
+        $technician = $this->request('GET', '/technicians/'.self::id($id));
+        self::requireRoles($technician);
+        return $technician;
+    }
+
+    /**
+     * Liste toutes les assignations d'un technicien (sans filtre de date côté Loxya).
+     * Chaque ligne porte son propre ID, sa période, son rôle et son événement.
+     * @return list<array<string,mixed>>
+     */
+    public function technicianAssignments(int $id): array
+    {
+        $rows = $this->getObjectList('/technicians/'.self::id($id).'/events');
+        self::requireAssignments($rows, 'event');
+        return $rows;
+    }
+
+    /**
+     * Liste les techniciens et leurs assignations pour les événements de la période.
+     * La période porte sur les événements Loxya, pas strictement sur les horaires
+     * d'assignation. Loxya limite la durée maximale de la requête (HTTP 416).
+     * @return list<array<string,mixed>>
+     */
+    public function techniciansWithAssignmentsInPeriod(string $startDate, string $endDate): array
+    {
+        $query = self::periodQuery($startDate, $endDate, ['paginated' => '0']);
+        $technicians = $this->getObjectList('/technicians/with-assignments?'.$query);
+        foreach ($technicians as $technician) {
+            self::requireRoles($technician);
+            if (!isset($technician['events']) || !is_array($technician['events'])
+                || !array_is_list($technician['events'])) {
+                throw new ProtocolException('Liste des assignations du technicien absente ou invalide.');
+            }
+            self::requireAssignments($technician['events'], 'event');
+        }
+        return $technicians;
+    }
+
+    /**
+     * Retourne les rôles disponibles. Dans les assignations, role contient
+     * déjà l'objet rôle (ou null), pas seulement role_id.
+     * @return list<array<string,mixed>>
+     */
+    public function roles(): array
+    {
+        return $this->getObjectList('/roles');
+    }
+
+    /**
+     * Catégories et sous-catégories de matériel, avec leurs noms.
+     * @return list<array<string,mixed>>
+     */
+    public function categories(): array
+    {
+        $categories = $this->getObjectList('/categories');
+        foreach ($categories as $category) {
+            if (!is_int($category['id'] ?? null) || !is_string($category['name'] ?? null)
+                || !isset($category['sub_categories']) || !is_array($category['sub_categories'])
+                || !array_is_list($category['sub_categories'])) {
+                throw new ProtocolException('Categorie ou sous-categories Loxya incompletes.');
+            }
+            foreach ($category['sub_categories'] as $subCategory) {
+                if (!is_array($subCategory) || array_is_list($subCategory)
+                    || !is_int($subCategory['id'] ?? null)
+                    || !is_string($subCategory['name'] ?? null)) {
+                    throw new ProtocolException('Sous-categorie Loxya inattendue.');
+                }
+            }
+        }
+        return $categories;
+    }
+
+    /**
+     * Barèmes dégressifs avec leurs paliers (from_day, is_rate, value).
+     * Aucun calcul de coefficient ni remise n'est effectué par le SDK.
+     * @return list<array<string,mixed>>
+     */
+    public function degressiveRates(): array
+    {
+        $rates = $this->getObjectList('/degressive-rates');
+        foreach ($rates as $rate) {
+            if (!is_int($rate['id'] ?? null) || !is_string($rate['name'] ?? null)
+                || !isset($rate['tiers']) || !is_array($rate['tiers'])
+                || !array_is_list($rate['tiers'])) {
+                throw new ProtocolException('Bareme ou paliers degressifs Loxya incomplets.');
+            }
+            foreach ($rate['tiers'] as $tier) {
+                if (!is_array($tier) || array_is_list($tier)
+                    || !is_int($tier['from_day'] ?? null)
+                    || !is_bool($tier['is_rate'] ?? null)
+                    || !(is_string($tier['value'] ?? null) || is_int($tier['value'] ?? null)
+                        || is_float($tier['value'] ?? null))) {
+                    throw new ProtocolException('Palier degressif Loxya inattendu.');
+                }
+            }
+        }
+        return $rates;
+    }
+
+    /**
      * Lit une fiche materiel du catalogue Loxya, notamment son prix de location
      * catalogue (rental_price) lorsqu'il est disponible.
      * Les donnees sont conservees sans calcul tarifaire ni normalisation.
@@ -95,6 +210,22 @@ final class Client
     }
 
     /**
+     * Liste les assignations de l'événement avec technicien, période et rôle.
+     * Utilise la fiche event() existante : pas de route HTTP supplémentaire.
+     * @return list<array<string,mixed>>
+     */
+    public function eventAssignments(int $id): array
+    {
+        $event = $this->event($id);
+        if (!isset($event['technicians']) || !is_array($event['technicians'])
+            || !array_is_list($event['technicians'])) {
+            throw new ProtocolException('Assignations de l evenement absentes ou invalides.');
+        }
+        self::requireAssignments($event['technicians'], 'technician');
+        return $event['technicians'];
+    }
+
+    /**
      * Liste les bookings d'une periode. Reponse JSON non paginee (tableau racine).
      * Les informations de materiel se trouvent dans la fiche event(), pas ici.
      *
@@ -102,21 +233,7 @@ final class Client
      */
     public function bookingsInPeriod(string $startDate, string $endDate): array
     {
-        foreach ([$startDate, $endDate] as $date) {
-            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
-            if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
-                throw new \InvalidArgumentException('Periode Loxya : date au format YYYY-MM-DD requise.');
-            }
-        }
-        if ($startDate > $endDate) {
-            throw new \InvalidArgumentException('Periode Loxya : fin anterieure au debut.');
-        }
-
-        $params = [
-            'paginated' => '0',
-            'period' => ['start' => $startDate, 'end' => $endDate],
-        ];
-        $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        $query = self::periodQuery($startDate, $endDate, ['paginated' => '0']);
         $entries = $this->request('GET', '/bookings?'.$query, null, true);
         foreach ($entries as $entry) {
             if (!is_array($entry) || array_is_list($entry)) {
@@ -197,6 +314,79 @@ final class Client
             }
         }
         return $after;
+    }
+
+    /**
+     * Conserve les objets JSON bruts dans une liste racine sans pagination.
+     * @return list<array<string,mixed>>
+     */
+    private function getObjectList(string $path): array
+    {
+        $rows = $this->request('GET', $path, null, true);
+        foreach ($rows as $row) {
+            if (!is_array($row) || array_is_list($row)) {
+                throw new ProtocolException('Entree de liste Loxya inattendue.');
+            }
+        }
+        return $rows;
+    }
+
+    /** @param array<string,string> $extra */
+    private static function periodQuery(string $startDate, string $endDate, array $extra = []): string
+    {
+        foreach ([$startDate, $endDate] as $date) {
+            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+                throw new \InvalidArgumentException('Periode Loxya : date au format YYYY-MM-DD requise.');
+            }
+        }
+        if ($startDate > $endDate) {
+            throw new \InvalidArgumentException('Periode Loxya : fin anterieure au debut.');
+        }
+        return http_build_query($extra + [
+            'period' => ['start' => $startDate, 'end' => $endDate],
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /** @param array<string,mixed> $technician */
+    private static function requireRoles(array $technician): void
+    {
+        if (!isset($technician['roles']) || !is_array($technician['roles'])
+            || !array_is_list($technician['roles'])) {
+            throw new ProtocolException('Roles du technicien absents ou invalides.');
+        }
+        foreach ($technician['roles'] as $role) {
+            if (!is_array($role) || array_is_list($role)
+                || !is_int($role['id'] ?? null) || !is_string($role['name'] ?? null)) {
+                throw new ProtocolException('Role de technicien Loxya inattendu.');
+            }
+        }
+    }
+
+    /**
+     * @param list<array<string,mixed>> $assignments
+     * @param 'event'|'technician' $related
+     */
+    private static function requireAssignments(array $assignments, string $related): void
+    {
+        foreach ($assignments as $assignment) {
+            if (!is_array($assignment) || array_is_list($assignment)
+                || !is_int($assignment['id'] ?? null)
+                || !is_int($assignment['event_id'] ?? null)
+                || !is_int($assignment['technician_id'] ?? null)
+                || !is_array($assignment['period'] ?? null)
+                || !is_string($assignment['period']['start'] ?? null)
+                || !is_string($assignment['period']['end'] ?? null)
+                || !array_key_exists('role', $assignment)
+                || ($assignment['role'] !== null
+                    && (!is_array($assignment['role']) || array_is_list($assignment['role'])
+                        || !is_int($assignment['role']['id'] ?? null)
+                        || !is_string($assignment['role']['name'] ?? null)))
+                || !is_array($assignment[$related] ?? null)
+                || array_is_list($assignment[$related])) {
+                throw new ProtocolException('Assignation Loxya incomplete ou inattendue.');
+            }
+        }
     }
 
     private function getListing(string $path, int $page, int $limit, ?string $search): array

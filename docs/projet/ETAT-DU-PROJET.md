@@ -9,6 +9,9 @@
 | Écritures contacts et association | **En test** | Normalisation des valeurs, confirmation en SaaS |
 | Bookings d'une période et événements | **Validé sur une instance SaaS**, v0.2.0 | Autres instances, permissions, cas sans matériel |
 | Matériel et prix catalogue | **Validé sur une instance SaaS**, v0.2.0 | Prix absents, écarts tarif événement/catalogue |
+| Techniciens, rôles et assignations | **En test**, cible v0.3.0 | Lecture SaaS, IDs pivots, rôles facultatifs, limites de période |
+| Catégories et sous-catégories | **En test**, cible v0.3.0 | Catégories et liens vers le matériel sur SaaS |
+| Barèmes dégressifs et paliers | **En test**, cible v0.3.0 | Valeurs, paliers virtuels et conditions de facturation |
 | Catalogue complet / recherche globale événements | **En projet** | Non implémenté |
 
 ## Recettes connues
@@ -24,5 +27,7 @@ Voir les [contrats événements](contrats/CONTRAT-LECTURE-EVENEMENTS.md), [maté
 - Vérifier les prix manquants et écarts entre prix catalogue et événement.
 - Terminer les tests d'écriture sur des fiches fictives autorisées.
 - Étudier séparément la recherche globale d'événements et le catalogue complet.
+- Recetter en lecture seule les nouveaux contrats des techniciens, catégories et barèmes (voir les fichiers dédiés).
+- Contrôler la granularité et les doublons d'assignations lors de recherches par fenêtres temporelles.
 
 Versions publiées : [v0.1.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.1.0) et [v0.2.0](https://github.com/Pocky0013/loxya-php-client/releases/tag/v0.2.0), préversions expérimentales. Prochaines versions : [procédure de publication](publications/PUBLICATION-GITHUB-ACTIONS.md).

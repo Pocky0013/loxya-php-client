@@ -4,6 +4,8 @@
 
 **Validé en lecture sur une instance SaaS (v0.2.0).** Autres installations et cas limites en test.
 
+Les assignations de techniciens de la fiche événement peuvent aussi être lues via [`eventAssignments($id)`](TECHNICIENS.md), sans requête HTTP supplémentaire.
+
 ## `bookingsInPeriod(string $startDate, string $endDate): array`
 
 Liste les bookings d'une période.
