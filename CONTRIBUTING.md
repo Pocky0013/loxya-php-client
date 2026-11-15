@@ -22,7 +22,7 @@ Ce dépôt est un **client PHP indépendant et réutilisable** pour certaines ro
 
 ## Maintien de l'état du projet
 
-Le [tableau de statut du README](README.md#état-du-projet) représente les fonctions effectivement utilisables, celles en test et celles encore en projet. Toute PR ajoutant une route, une méthode, une validation SaaS substantielle ou une première version publiée doit le mettre à jour dans le même changement.
+Le [tableau de suivi du projet](docs/projet/ETAT-DU-PROJET.md) représente les fonctions effectivement utilisables, celles en test et celles encore en projet. Toute PR ajoutant une route, une méthode, une validation SaaS substantielle ou une première version publiée doit le mettre à jour dans le même changement.
 
 Ne qualifier une fonctionnalité de **Validé** que si elle est implémentée, testée en CI et a fait l'objet d'une vérification réelle contrôlée. Si seules des réponses simulées ont été testées, utiliser **En test**. Ne jamais confondre un résultat de CI avec une garantie de compatibilité de l'API non officielle.
 
@@ -40,13 +40,13 @@ Les identifiants Loxya restent uniquement dans la configuration de l'application
 
 ## Versions du SDK
 
-Les versions **`v0.1.0` et `v0.2.0` sont publiées en préversions expérimentales**. Toute PR touchant une signature publique, une exception, une contrainte de plateforme ou la compatibilité doit mettre à jour [CHANGELOG.md](CHANGELOG.md) et le contrôle `composer api-check`. Pour les prochaines versions, suivre [docs/PUBLICATION-GITHUB-ACTIONS.md](docs/PUBLICATION-GITHUB-ACTIONS.md) et [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md), en respectant la [politique de versionnement](docs/VERSIONING.md).
+Les versions **`v0.1.0` et `v0.2.0` sont publiées en préversions expérimentales**. Toute PR touchant une signature publique, une exception, une contrainte de plateforme ou la compatibilité doit mettre à jour [CHANGELOG.md](CHANGELOG.md) et le contrôle `composer api-check`. Pour les prochaines versions, suivre [docs/projet/publications/PUBLICATION-GITHUB-ACTIONS.md](docs/projet/publications/PUBLICATION-GITHUB-ACTIONS.md) et [docs/projet/publications/RELEASE-CHECKLIST.md](docs/projet/publications/RELEASE-CHECKLIST.md), en respectant la [politique de versionnement](docs/projet/publications/VERSIONING.md).
 
 Une CI réussie n'est pas une validation de l'instance SaaS. La publication reste manuelle et exige une approbation distincte : le mode `verifier` de GitHub Actions ne publie rien et le mode `publier` crée le tag annoté et la GitHub Release. Packagist n'est pas publié automatiquement.
 
 ## Recette SaaS contrôlée
 
-Les tests automatisés ne doivent jamais utiliser d'identifiants SaaS. La [procédure générique](docs/RECETTE-SAAS.md) et le diagnostic `php bin/loxya-read-check.php --check` permettent une vérification de lecture sur une instance autorisée, sans exposer les valeurs sources. Les écritures de test exigent une autorisation explicite distincte, sur des fiches fictives.
+Les tests automatisés ne doivent jamais utiliser d'identifiants SaaS. La [procédure générique](docs/projet/recettes/RECETTE-SAAS.md) et le diagnostic `php bin/loxya-read-check.php --check` permettent une vérification de lecture sur une instance autorisée, sans exposer les valeurs sources. Les écritures de test exigent une autorisation explicite distincte, sur des fiches fictives.
 
 ## Évolution vers une API officielle
 

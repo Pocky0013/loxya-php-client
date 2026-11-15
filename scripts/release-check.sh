@@ -9,7 +9,7 @@ if [[ ! "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; t
 fi
 
 number="${version#v}"
-notes="docs/RELEASE-NOTES-${version}.md"
+notes="docs/projet/publications/RELEASE-NOTES-${version}.md"
 if [[ ! -s "$notes" ]]; then
     echo "Notes de version absentes ou vides : $notes" >&2
     exit 1

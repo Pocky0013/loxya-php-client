@@ -37,4 +37,4 @@ composer require electraudio/loxya-php-client:^0.1.0
 
 Le `composer.lock` de chaque application consommatrice détermine le commit installé. Le tag Git et la publication Packagist sont deux opérations différentes ; Packagist n'est **pas requis** pour une installation par VCS.
 
-Documentation : [README](../README.md) · [Changelog](../CHANGELOG.md) · [Contrat de lecture](CONTRAT-LECTURE-CONTACTS.md) · [Contrat d'écriture](CONTRAT-ECRITURES-CONTACTS.md) · [Recette SaaS](RECETTE-SAAS.md).
+Documentation : [README](../../../README.md) · [Changelog](../../../CHANGELOG.md) · [Contrat de lecture](../contrats/CONTRAT-LECTURE-CONTACTS.md) · [Contrat d'écriture](../contrats/CONTRAT-ECRITURES-CONTACTS.md) · [Recette SaaS](../recettes/RECETTE-SAAS.md).
