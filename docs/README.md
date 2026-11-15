@@ -5,7 +5,7 @@ Le SDK fournit des **méthodes PHP**, pas une API HTTP officielle à appeler dir
 ## Commencer
 
 - [Installer et configurer](guides/DEMARRAGE.md)
-- [Parcours concret : événements avec matériel](guides/SCENARIOS.md)
+- [Exemple PHP : événements et matériel associé](guides/SCENARIOS.md)
 - **[Référence complète des méthodes PHP](api/README.md)**
 
 ## Parcourir la référence

@@ -54,7 +54,7 @@ Le SDK ne charge pas de fichier `.env` lui-même. Voir le [guide d'installation]
 
 - **[Référence de toutes les méthodes PHP](docs/api/README.md)** — paramètres, exemple, retour, erreurs.
 - [Installation et configuration](docs/guides/DEMARRAGE.md).
-- [Exemple : récupérer les événements avec du matériel](docs/guides/SCENARIOS.md).
+- [Exemple PHP : consulter les événements et leur matériel](docs/guides/SCENARIOS.md).
 - [Sommaire de la documentation](docs/README.md).
 - [Mémoire technique et suivi du projet](docs/projet/README.md) — contrats, recettes, architecture et publications.
 

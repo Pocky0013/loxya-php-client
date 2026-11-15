@@ -26,6 +26,12 @@ Le [tableau de suivi du projet](docs/projet/ETAT-DU-PROJET.md) représente les f
 
 Ne qualifier une fonctionnalité de **Validé** que si elle est implémentée, testée en CI et a fait l'objet d'une vérification réelle contrôlée. Si seules des réponses simulées ont été testées, utiliser **En test**. Ne jamais confondre un résultat de CI avec une garantie de compatibilité de l'API non officielle.
 
+## Documentation générique et mémoire technique
+
+Les pages `README.md`, `docs/api/` et `docs/guides/` sont destinées aux utilisateurs du SDK. Elles décrivent uniquement les méthodes PHP, paramètres, données retournées, erreurs et exemples **fictifs, neutres et réutilisables**. Ne pas y intégrer de règles de catalogue, de facturation ou de processus propres à une application consommatrice.
+
+Le dossier `docs/projet/` est séparé pour la maintenance, mais **reste public** tant que le dépôt GitHub est public. Les conventions métier spécifiques ou confidentielles doivent être documentées dans un espace privé en dehors du dépôt.
+
 ## Avant d'ajouter une méthode
 
 1. Vérifier le comportement de la route concernée sur les éléments disponibles, sans inventer de schéma ni de garantie de stabilité.

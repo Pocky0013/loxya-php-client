@@ -12,7 +12,7 @@ Les routes utilisées sont **internes et non officielles**. Le fait qu'elles exi
 2. **Lire la fiche d'un événement identifié** avec `event($id)`.
 3. **Lire les lignes de matériel affecté** dans `$event['materials']`, notamment `id`, `reference`, `name` et `quantity`.
 
-Aucune synchronisation, stockage applicatif, transformation métier, connexion Bexio ou modification d'un événement n'appartient à ce contrat. Les deux méthodes sont des lectures GET ; la connexion `POST /api/session` existe déjà dans le SDK pour établir la session.
+Aucune synchronisation, stockage applicatif, transformation métier, connexion à un service tiers ou modification d'un événement n'appartient à ce contrat. Les deux méthodes sont des lectures GET ; la connexion `POST /api/session` existe déjà dans le SDK pour établir la session.
 
 ## 1. Liste des événements d'une période
 
@@ -102,7 +102,7 @@ La recette a été réalisée depuis le Portail Electraudio **DEV**, en SSH sur 
 - [ ] Cas `materials: []` vérifié en détail sur le SaaS.
 - [ ] Droits restrictifs, erreurs 401/403/404 réelles, autres versions Loxya et périodes étendues vérifiés.
 
-**Précision métier :** une référence telle que `SANS_Materiel` est un article catalogue légitime pour signaler une prestation sans matériel physique à préparer. Le SDK renvoie cet article et sa quantité sans filtre, exclusion ni interprétation particulière.
+**Comportement générique :** le SDK conserve les références et quantités des lignes transmises par Loxya, sans exclusion ni interprétation métier.
 
 **Portée :** le parcours P6.1 est **validé sur l'instance SaaS Electraudio pour les cas observés**, et non certifié sur toutes les installations. Les tests HTTP d'erreur et de formats atypiques ont été réalisés avec un transport simulé, pas reproduits en conditions réelles.
 

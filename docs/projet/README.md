@@ -2,7 +2,7 @@
 
 [Documentation utilisateur](../README.md) · [Accueil](../../README.md)
 
-Cet espace conserve les décisions, les contrats HTTP internes, les recettes SaaS et les procédures de publication. **Il n'est pas le point d'entrée d'un utilisateur du SDK.**
+Cet espace conserve les décisions, les contrats HTTP internes, les recettes SaaS et les procédures de publication. **Il n'est pas le point d'entrée d'un utilisateur du SDK.** Ce dossier reste toutefois **public**, comme le dépôt GitHub : ne pas y conserver de conventions opérationnelles propres à un utilisateur ni de scénarios internes non destinés à la publication.
 
 ## Statuts et références
 - [État de validation, limites et travaux ouverts](ETAT-DU-PROJET.md)
