@@ -113,4 +113,4 @@ Le client n'expose pas le corps des réponses HTTP erronées dans ses exceptions
 
 Ne publier ni identifiants, ni JWT, ni réponses nominatives dans les issues, tests ou documentations. **Les exemples et fixtures ne sont pas des captures du SaaS.**
 
-Pour des règles de contribution et l'ajout futur de ressources vérifiées, voir [CONTRIBUTING.md](../CONTRIBUTING.md).
+Pour des règles de contribution et l'ajout futur de ressources vérifiées, voir [CONTRIBUTING.md](../../../CONTRIBUTING.md).
